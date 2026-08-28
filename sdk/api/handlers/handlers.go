@@ -196,6 +196,11 @@ func requestExecutionMetadata(ctx context.Context) map[string]any {
 	if disallowFreeAuthFromContext(ctx) {
 		meta[coreexecutor.DisallowFreeAuthMetadataKey] = true
 	}
+	if customMeta := requestMetadataFromContext(ctx); len(customMeta) > 0 {
+		for k, v := range customMeta {
+			meta[k] = v
+		}
+	}
 	return meta
 }
 

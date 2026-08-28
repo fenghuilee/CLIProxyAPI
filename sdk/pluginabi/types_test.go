@@ -36,6 +36,18 @@ func TestMethodNamesAreStable(t *testing.T) {
 	if SchemaVersionStreamChunkOmitRequestBody != 3 {
 		t.Fatalf("SchemaVersionStreamChunkOmitRequestBody = %d, want 3", SchemaVersionStreamChunkOmitRequestBody)
 	}
+	if SchemaVersionAIGC != 4 {
+		t.Fatalf("SchemaVersionAIGC = %d, want 4", SchemaVersionAIGC)
+	}
+	if MethodContentGenerationStoreCreate != "content_generation.store.create" {
+		t.Fatalf("MethodContentGenerationStoreCreate = %q", MethodContentGenerationStoreCreate)
+	}
+	if MethodContentGenerationMutate != "content_generation.mutate" {
+		t.Fatalf("MethodContentGenerationMutate = %q", MethodContentGenerationMutate)
+	}
+	if MethodContentGenerationDriverSupports != "content_generation.driver.supports" {
+		t.Fatalf("MethodContentGenerationDriverSupports = %q", MethodContentGenerationDriverSupports)
+	}
 	if MethodPluginRegister != "plugin.register" {
 		t.Fatalf("MethodPluginRegister = %q", MethodPluginRegister)
 	}
@@ -89,6 +101,18 @@ func TestMethodNamesAreStable(t *testing.T) {
 	}
 	if MethodHostAuthSave != "host.auth.save" {
 		t.Fatalf("MethodHostAuthSave = %q", MethodHostAuthSave)
+	}
+	if MethodHostDatabaseQuery != "host.db.query" {
+		t.Fatalf("MethodHostDatabaseQuery = %q", MethodHostDatabaseQuery)
+	}
+	if MethodHostDatabaseExec != "host.db.exec" {
+		t.Fatalf("MethodHostDatabaseExec = %q", MethodHostDatabaseExec)
+	}
+	if MethodDatabaseProviderQuery != "database_provider.query" {
+		t.Fatalf("MethodDatabaseProviderQuery = %q", MethodDatabaseProviderQuery)
+	}
+	if MethodDatabaseProviderExec != "database_provider.exec" {
+		t.Fatalf("MethodDatabaseProviderExec = %q", MethodDatabaseProviderExec)
 	}
 	if MethodExecutorExecuteStream != "executor.execute_stream" {
 		t.Fatalf("MethodExecutorExecuteStream = %q", MethodExecutorExecuteStream)

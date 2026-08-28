@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/clienterror"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/interfaces"
@@ -49,6 +50,14 @@ func (h *BaseAPIHandler) executeWithAuthManagerFormats(ctx context.Context, entr
 	}
 	if routeDecision.ExecutorPluginID != "" {
 		return h.executeWithPluginExecutor(ctx, entryProtocol, responseProtocol, modelName, originalRequestedModel, rawJSON, alt, routeDecision.ExecutorPluginID, execOptions)
+	}
+	if !allowImageModel {
+		reqMeta := requestExecutionMetadata(ctx)
+		if path, ok := reqMeta[coreexecutor.RequestPathMetadataKey].(string); ok && (strings.Contains(path, "/images") || strings.Contains(path, "/images/")) {
+			allowImageModel = true
+		} else if endpoint, ok := reqMeta[coreexecutor.CustomEndpointMetadataKey].(string); ok && (strings.Contains(endpoint, "/images") || strings.Contains(endpoint, "/images/")) {
+			allowImageModel = true
+		}
 	}
 	providers, normalizedModel, errMsg := h.providersForExecution(modelName, originalRequestedModel, allowImageModel, routeDecision, execOptions)
 	if errMsg != nil {

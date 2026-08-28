@@ -127,6 +127,10 @@ func (h *Host) callFromPlugin(ctx context.Context, method string, request []byte
 		return h.callHostAuthGetRuntime(ctx, request)
 	case pluginabi.MethodHostAuthSave:
 		return h.callHostAuthSave(ctx, request)
+	case pluginabi.MethodHostDatabaseQuery:
+		return h.callHostDatabaseQuery(ctx, request)
+	case pluginabi.MethodHostDatabaseExec:
+		return h.callHostDatabaseExec(ctx, request)
 	default:
 		return nil, fmt.Errorf("unsupported host callback %s", method)
 	}
@@ -353,4 +357,55 @@ func (h *Host) callHostLog(ctx context.Context, request []byte) ([]byte, error) 
 		entry.Debug(message)
 	}
 	return marshalRPCResult(rpcEmptyResponse{})
+}
+
+// ErrNoDatabaseProvider is returned when a database operation is requested but no DatabaseProvider plugin is active.
+var ErrNoDatabaseProvider = fmt.Errorf("no database provider plugin configured or active")
+
+func (h *Host) callHostDatabaseQuery(ctx context.Context, request []byte) ([]byte, error) {
+	var req pluginapi.HostDatabaseQueryRequest
+	if len(request) > 0 {
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, fmt.Errorf("decode host database query request: %w", errUnmarshal)
+		}
+	}
+	provider, _, ok := h.DatabaseProvider()
+	if !ok || provider == nil {
+		return nil, ErrNoDatabaseProvider
+	}
+	resp, errQuery := provider.Query(ctx, pluginapi.DatabaseQueryRequest{
+		Query: req.Query,
+		Args:  req.Args,
+	})
+	if errQuery != nil {
+		return nil, errQuery
+	}
+	return marshalRPCResult(pluginapi.HostDatabaseQueryResponse{
+		Rows:    resp.Rows,
+		Columns: resp.Columns,
+	})
+}
+
+func (h *Host) callHostDatabaseExec(ctx context.Context, request []byte) ([]byte, error) {
+	var req pluginapi.HostDatabaseExecRequest
+	if len(request) > 0 {
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, fmt.Errorf("decode host database exec request: %w", errUnmarshal)
+		}
+	}
+	provider, _, ok := h.DatabaseProvider()
+	if !ok || provider == nil {
+		return nil, ErrNoDatabaseProvider
+	}
+	resp, errExec := provider.Exec(ctx, pluginapi.DatabaseExecRequest{
+		Query: req.Query,
+		Args:  req.Args,
+	})
+	if errExec != nil {
+		return nil, errExec
+	}
+	return marshalRPCResult(pluginapi.HostDatabaseExecResponse{
+		RowsAffected: resp.RowsAffected,
+		LastInsertID: resp.LastInsertID,
+	})
 }

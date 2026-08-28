@@ -107,6 +107,33 @@ func (s *Server) setupRoutes() {
 		openaiV1.GET("/videos/:video_id", openaiHandlers.VideosRetrieve)
 	}
 
+	// AIGC Asynchronous Content Generation Lifecycle API routes
+	aigcV1 := s.engine.Group("/aigc/v1")
+	aigcV1.Use(AuthMiddleware(s.accessManager))
+	{
+		aigcV1.POST("/videos", s.aigcCreateVideoHandler)
+		aigcV1.POST("/video", s.aigcCreateVideoHandler)
+		aigcV1.GET("/videos/:generation_id", s.aigcGetVideoHandler)
+		aigcV1.GET("/video/:generation_id", s.aigcGetVideoHandler)
+		aigcV1.GET("/videos/:generation_id/content", s.aigcGetVideoContentHandler)
+		aigcV1.GET("/video/:generation_id/content", s.aigcGetVideoContentHandler)
+		aigcV1.POST("/videos/:generation_id/cancel", s.aigcCancelVideoHandler)
+		aigcV1.POST("/video/:generation_id/cancel", s.aigcCancelVideoHandler)
+
+		aigcV1.POST("/images", s.aigcCreateImageHandler)
+		aigcV1.POST("/image", s.aigcCreateImageHandler)
+		aigcV1.POST("/images/generations", s.aigcGenerateImageSyncHandler)
+		aigcV1.POST("/image/generations", s.aigcGenerateImageSyncHandler)
+		aigcV1.POST("/images/edits", s.aigcEditImageSyncHandler)
+		aigcV1.POST("/image/edits", s.aigcEditImageSyncHandler)
+		aigcV1.GET("/images/:generation_id", s.aigcGetImageHandler)
+		aigcV1.GET("/image/:generation_id", s.aigcGetImageHandler)
+		aigcV1.GET("/images/:generation_id/content", s.aigcGetImageContentHandler)
+		aigcV1.GET("/image/:generation_id/content", s.aigcGetImageContentHandler)
+		aigcV1.POST("/images/:generation_id/cancel", s.aigcCancelImageHandler)
+		aigcV1.POST("/image/:generation_id/cancel", s.aigcCancelImageHandler)
+	}
+
 	// Codex CLI direct route aliases (chatgpt_base_url compatible)
 	codexDirect := s.engine.Group("/backend-api/codex")
 	codexDirect.Use(AuthMiddleware(s.accessManager))

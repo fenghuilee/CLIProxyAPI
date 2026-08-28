@@ -65,6 +65,8 @@ func markNestedExecution(ctx context.Context) {
 	}
 }
 
+type requestMetadataContextKey struct{}
+
 // WithPinnedAuthID returns a child context that requests execution on a specific auth ID.
 func WithPinnedAuthID(ctx context.Context, authID string) context.Context {
 	authID = strings.TrimSpace(authID)
@@ -129,6 +131,33 @@ func WithDisallowFreeAuth(ctx context.Context) context.Context {
 		ctx = context.Background()
 	}
 	return context.WithValue(ctx, disallowFreeAuthContextKey{}, true)
+}
+
+// WithRequestMetadata returns a child context carrying additional execution metadata.
+func WithRequestMetadata(ctx context.Context, meta map[string]any) context.Context {
+	if len(meta) == 0 {
+		return ctx
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	existing := requestMetadataFromContext(ctx)
+	merged := make(map[string]any, len(existing)+len(meta))
+	for k, v := range existing {
+		merged[k] = v
+	}
+	for k, v := range meta {
+		merged[k] = v
+	}
+	return context.WithValue(ctx, requestMetadataContextKey{}, merged)
+}
+
+func requestMetadataFromContext(ctx context.Context) map[string]any {
+	if ctx == nil {
+		return nil
+	}
+	meta, _ := ctx.Value(requestMetadataContextKey{}).(map[string]any)
+	return meta
 }
 
 // headersFromContext extracts the original HTTP request headers from the gin context

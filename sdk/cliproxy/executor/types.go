@@ -15,6 +15,15 @@ const RequestedModelMetadataKey = "requested_model"
 // It is optional and may be absent for non-HTTP executions.
 const RequestPathMetadataKey = "request_path"
 
+// CustomEndpointMetadataKey explicitly specifies a custom upstream endpoint path (e.g. "/contents/generations/tasks").
+// Unlike RequestPathMetadataKey (which records the inbound HTTP route for matching/logging),
+// this explicitly instructs the executor to target an arbitrary custom endpoint path.
+const CustomEndpointMetadataKey = "custom_endpoint"
+
+// HTTPMethodMetadataKey stores the HTTP method (e.g. "GET", "POST", "DELETE") in Options.Metadata.
+// It is optional and defaults to POST when RequestPathMetadataKey is provided.
+const HTTPMethodMetadataKey = "http_method"
+
 // DisallowFreeAuthMetadataKey instructs auth selection to skip known free-tier credentials.
 const DisallowFreeAuthMetadataKey = "disallow_free_auth"
 

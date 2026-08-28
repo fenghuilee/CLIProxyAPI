@@ -104,51 +104,89 @@ func (e *OpenAICompatExecutor) Execute(ctx context.Context, auth *cliproxyauth.A
 	from := opts.SourceFormat
 	responseFormat := cliproxyexecutor.ResponseFormatOrSource(opts)
 	to := sdktranslator.FromString("openai")
+
+	customMethod := http.MethodPost
+	customPath := ""
+	isCustomEndpoint := false
+
+	if len(opts.Metadata) > 0 {
+		if p, ok := opts.Metadata[cliproxyexecutor.CustomEndpointMetadataKey].(string); ok && strings.TrimSpace(p) != "" {
+			customPath = strings.TrimSpace(p)
+			isCustomEndpoint = true
+		}
+		if m, ok := opts.Metadata[cliproxyexecutor.HTTPMethodMetadataKey].(string); ok && strings.TrimSpace(m) != "" {
+			customMethod = strings.ToUpper(strings.TrimSpace(m))
+		}
+	}
+
 	endpoint := "/chat/completions"
-	if opts.Alt == "responses/compact" {
+	if isCustomEndpoint {
+		endpoint = "/" + strings.TrimPrefix(customPath, "/")
+	} else if opts.Alt == "responses/compact" {
 		to = sdktranslator.FromString("openai-response")
 		endpoint = "/responses/compact"
 	}
-	originalPayloadSource := req.Payload
-	if len(opts.OriginalRequest) > 0 {
-		originalPayloadSource = opts.OriginalRequest
-	}
-	originalPayload := originalPayloadSource
-	isCompat := helps.APIKeyModelIsCompat(req)
-	originalTranslated := helps.TranslateRequestWithAPIKeyModelCompatibility(ctx, opts.Headers, e.cfg, from, to, baseModel, originalPayload, opts.Stream, isCompat)
-	translated := helps.TranslateRequestWithAPIKeyModelCompatibility(ctx, opts.Headers, e.cfg, from, to, baseModel, req.Payload, opts.Stream, isCompat)
 
-	translated, err = helps.ApplyRequestThinking(translated, req, opts, from.String(), to.String(), e.Identifier())
-	if err != nil {
-		return resp, err
-	}
+	var translated []byte
+	if isCustomEndpoint {
+		translated = req.Payload
+		if len(translated) > 0 && gjson.GetBytes(translated, "model").Exists() && strings.TrimSpace(baseModel) != "" {
+			if rewritten, errSet := sjson.SetBytes(translated, "model", baseModel); errSet == nil {
+				translated = rewritten
+			}
+		}
+	} else {
+		originalPayloadSource := req.Payload
+		if len(opts.OriginalRequest) > 0 {
+			originalPayloadSource = opts.OriginalRequest
+		}
+		originalPayload := originalPayloadSource
+		isCompat := helps.APIKeyModelIsCompat(req)
+		originalTranslated := helps.TranslateRequestWithAPIKeyModelCompatibility(ctx, opts.Headers, e.cfg, from, to, baseModel, originalPayload, opts.Stream, isCompat)
+		translated = helps.TranslateRequestWithAPIKeyModelCompatibility(ctx, opts.Headers, e.cfg, from, to, baseModel, req.Payload, opts.Stream, isCompat)
 
-	requestedModel := helps.PayloadRequestedModel(opts, req.Model)
-	requestPath := helps.PayloadRequestPath(opts)
-	translated = helps.ApplyPayloadConfigWithRequest(e.cfg, baseModel, to.String(), from.String(), "", translated, originalTranslated, requestedModel, requestPath, opts.Headers)
-	if helps.ShouldNormalizeOpenAIToolResultsForModel(e.resolveCompatConfig(auth), baseModel, requestedModel) {
-		translated = helps.NormalizeOpenAIToolResultsTextOnly(translated)
-	}
-	if opts.Alt != "responses/compact" {
-		translated, err = e.applyPromptCacheKey(ctx, auth, from, baseModel, req, opts, translated)
+		translated, err = helps.ApplyRequestThinking(translated, req, opts, from.String(), to.String(), e.Identifier())
 		if err != nil {
 			return resp, err
 		}
-	}
-	if opts.Alt == "responses/compact" {
-		if updated, errDelete := sjson.DeleteBytes(translated, "stream"); errDelete == nil {
-			translated = updated
-		}
-		translated = sanitizeOpenAIResponsesReasoningEncryptedContent(ctx, "openai compat executor", translated)
-	}
-	reporter.SetTranslatedReasoningEffort(translated, to.String())
 
-	url := strings.TrimSuffix(baseURL, "/") + endpoint
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(translated))
+		requestedModel := helps.PayloadRequestedModel(opts, req.Model)
+		requestPath := helps.PayloadRequestPath(opts)
+		translated = helps.ApplyPayloadConfigWithRequest(e.cfg, baseModel, to.String(), from.String(), "", translated, originalTranslated, requestedModel, requestPath, opts.Headers)
+		if helps.ShouldNormalizeOpenAIToolResultsForModel(e.resolveCompatConfig(auth), baseModel, requestedModel) {
+			translated = helps.NormalizeOpenAIToolResultsTextOnly(translated)
+		}
+		if opts.Alt != "responses/compact" {
+			translated, err = e.applyPromptCacheKey(ctx, auth, from, baseModel, req, opts, translated)
+			if err != nil {
+				return resp, err
+			}
+		}
+		if opts.Alt == "responses/compact" {
+			if updated, errDelete := sjson.DeleteBytes(translated, "stream"); errDelete == nil {
+				translated = updated
+			}
+			translated = sanitizeOpenAIResponsesReasoningEncryptedContent(ctx, "openai compat executor", translated)
+		}
+		reporter.SetTranslatedReasoningEffort(translated, to.String())
+	}
+
+	url := strings.TrimSuffix(baseURL, "/") + "/" + strings.TrimPrefix(endpoint, "/")
+	if isCustomEndpoint && (strings.HasPrefix(customPath, "http://") || strings.HasPrefix(customPath, "https://")) {
+		url = customPath
+	}
+	httpMethod := customMethod
+	var bodyReader io.Reader
+	if len(translated) > 0 {
+		bodyReader = bytes.NewReader(translated)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, httpMethod, url, bodyReader)
 	if err != nil {
 		return resp, err
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	if len(translated) > 0 {
+		httpReq.Header.Set("Content-Type", "application/json")
+	}
 	if apiKey != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+apiKey)
 	}
@@ -166,7 +204,7 @@ func (e *OpenAICompatExecutor) Execute(ctx context.Context, auth *cliproxyauth.A
 	}
 	helps.RecordAPIRequest(ctx, e.cfg, helps.UpstreamRequestLog{
 		URL:       url,
-		Method:    http.MethodPost,
+		Method:    httpMethod,
 		Headers:   httpReq.Header.Clone(),
 		Body:      translated,
 		Provider:  e.Identifier(),
@@ -202,6 +240,10 @@ func (e *OpenAICompatExecutor) Execute(ctx context.Context, auth *cliproxyauth.A
 		return resp, err
 	}
 	helps.AppendAPIResponseChunk(ctx, e.cfg, body)
+	if isCustomEndpoint {
+		resp = cliproxyexecutor.Response{Payload: body, Headers: httpResp.Header.Clone()}
+		return resp, nil
+	}
 	reporter.Publish(ctx, helps.ParseOpenAIUsage(body))
 	// Ensure we at least record the request even if upstream doesn't return usage
 	reporter.EnsurePublished(ctx)

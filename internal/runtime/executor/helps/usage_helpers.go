@@ -60,9 +60,14 @@ func NewExecutorUsageReporter(ctx context.Context, executor usageExecutor, model
 
 func NewUsageReporter(ctx context.Context, provider, model string, auth *cliproxyauth.Auth) *UsageReporter {
 	apiKey := APIKeyFromContext(ctx)
+	clientIP := ClientIPFromContext(ctx)
 	alias := usage.RequestedModelAliasFromContext(ctx)
 	if alias == "" {
 		alias = model
+	}
+	source := clientIP
+	if source == "" {
+		source = resolveUsageSource(auth, apiKey)
 	}
 	reporter := &UsageReporter{
 		provider:    provider,
@@ -70,7 +75,7 @@ func NewUsageReporter(ctx context.Context, provider, model string, auth *cliprox
 		alias:       strings.TrimSpace(alias),
 		requestedAt: time.Now(),
 		apiKey:      apiKey,
-		source:      resolveUsageSource(auth, apiKey),
+		source:      source,
 		authType:    resolveUsageAuthType(auth),
 		reasoning:   usage.ReasoningEffortFromContext(ctx),
 		serviceTier: usage.ServiceTierFromContext(ctx),
@@ -404,6 +409,25 @@ func APIKeyFromContext(ctx context.Context) string {
 			return value.String()
 		default:
 			return fmt.Sprintf("%v", value)
+		}
+	}
+	return ""
+}
+
+func ClientIPFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	ginCtx, ok := ctx.Value("gin").(*gin.Context)
+	if !ok || ginCtx == nil {
+		return ""
+	}
+	if v, exists := ginCtx.Get("client_ip"); exists && v != nil {
+		return strings.TrimSpace(fmt.Sprint(v))
+	}
+	if ginCtx.Request != nil {
+		if ip := strings.TrimSpace(ginCtx.ClientIP()); ip != "" {
+			return ip
 		}
 	}
 	return ""

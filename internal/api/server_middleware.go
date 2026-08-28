@@ -166,7 +166,11 @@ func accessAuthMiddleware(manager *sdkaccess.Manager, realtimeError bool) gin.Ha
 		result, err := manager.Authenticate(c.Request.Context(), c.Request)
 		if err == nil {
 			if result != nil {
-				c.Set("userApiKey", result.Principal)
+				userKey := result.Principal
+				if forwardedKey := strings.TrimSpace(c.GetHeader("X-User-API-Key")); forwardedKey != "" {
+					userKey = forwardedKey
+				}
+				c.Set("userApiKey", userKey)
 				c.Set("accessProvider", result.Provider)
 				if len(result.Metadata) > 0 {
 					c.Set("accessMetadata", result.Metadata)

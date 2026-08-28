@@ -384,3 +384,49 @@ func TestSanitizePluginRequestScheduler(t *testing.T) {
 		t.Fatalf("scheduler candidate metadata drop survived sanitize: %#v", gotCandidate.Metadata)
 	}
 }
+
+func TestRPCCapabilitiesIncludeContentGeneration(t *testing.T) {
+	plugin := pluginapi.Plugin{
+		Capabilities: pluginapi.Capabilities{
+			ContentGenerationStore:    &mockStore{},
+			ContentGenerationMutator:  &mockMutator{},
+			ContentGenerationDriver:   &mockDriver{},
+			ContentGenerationObserver: &mockObserver{},
+		},
+	}
+
+	caps := rpcCapabilitiesFromPlugin(plugin)
+	if !caps.ContentGenerationStore {
+		t.Fatal("ContentGenerationStore = false, want true")
+	}
+	if !caps.ContentGenerationMutator {
+		t.Fatal("ContentGenerationMutator = false, want true")
+	}
+	if !caps.ContentGenerationDriver {
+		t.Fatal("ContentGenerationDriver = false, want true")
+	}
+	if !caps.ContentGenerationObserver {
+		t.Fatal("ContentGenerationObserver = false, want true")
+	}
+
+	raw, errMarshal := json.Marshal(caps)
+	if errMarshal != nil {
+		t.Fatalf("Marshal() error = %v", errMarshal)
+	}
+	var decoded map[string]any
+	if errUnmarshal := json.Unmarshal(raw, &decoded); errUnmarshal != nil {
+		t.Fatalf("Unmarshal() error = %v", errUnmarshal)
+	}
+	if decoded["content_generation_store"] != true {
+		t.Errorf("content_generation_store = %#v, want true", decoded["content_generation_store"])
+	}
+	if decoded["content_generation_mutator"] != true {
+		t.Errorf("content_generation_mutator = %#v, want true", decoded["content_generation_mutator"])
+	}
+	if decoded["content_generation_driver"] != true {
+		t.Errorf("content_generation_driver = %#v, want true", decoded["content_generation_driver"])
+	}
+	if decoded["content_generation_observer"] != true {
+		t.Errorf("content_generation_observer = %#v, want true", decoded["content_generation_observer"])
+	}
+}

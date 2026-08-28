@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	internalaigc "github.com/router-for-me/CLIProxyAPI/v7/internal/aigc"
 	managementHandlers "github.com/router-for-me/CLIProxyAPI/v7/internal/api/handlers/management"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/api/middleware"
 	codexlive "github.com/router-for-me/CLIProxyAPI/v7/internal/client/codex/live"
@@ -52,6 +53,8 @@ type Server struct {
 	// handlers contains the API handlers for processing requests.
 	handlers         *handlers.BaseAPIHandler
 	codexLiveHandler *codexlive.Handler
+	aigcCoordinator  *internalaigc.Coordinator
+	aigcSyncPipeline *internalaigc.SyncPipeline
 
 	// cfg holds the current server configuration.
 	cfg *config.Config

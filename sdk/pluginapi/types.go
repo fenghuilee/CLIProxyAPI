@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/router-for-me/CLIProxyAPI/v7/sdk/aigc"
 )
 
 // Plugin is the host-side representation produced from a dynamic plugin registration.
@@ -122,6 +124,16 @@ type Capabilities struct {
 	CommandLinePlugin CommandLinePlugin
 	// ManagementAPI declares plugin-owned diagnostic Management API and resource routes.
 	ManagementAPI ManagementAPI
+	// ContentGenerationStore provides exclusive durable state storage for asynchronous content generations.
+	ContentGenerationStore aigc.ContentGenerationStore
+	// ContentGenerationMutator intercepts and customizes content generation lifecycle phases.
+	ContentGenerationMutator aigc.ContentGenerationMutator
+	// ContentGenerationDriver provides provider protocol translation for asynchronous content generations.
+	ContentGenerationDriver aigc.ContentGenerationDriver
+	// ContentGenerationObserver subscribes to read-only content generation lifecycle events.
+	ContentGenerationObserver aigc.ContentGenerationObserver
+	// DatabaseProvider provides raw relational database execution for the host and other plugins.
+	DatabaseProvider DatabaseProvider
 }
 
 // ExecutorModelScope declares which model-registration paths a plugin executor supports.
@@ -1404,4 +1416,58 @@ type UsageDetail struct {
 	CacheCreationTokens int64
 	// TotalTokens is the total token count.
 	TotalTokens int64
+}
+
+// DatabaseProvider provides generic database query and execution capabilities.
+type DatabaseProvider interface {
+	Query(ctx context.Context, req DatabaseQueryRequest) (DatabaseQueryResponse, error)
+	Exec(ctx context.Context, req DatabaseExecRequest) (DatabaseExecResponse, error)
+}
+
+// DatabaseQueryRequest describes a parameterized SQL SELECT query.
+type DatabaseQueryRequest struct {
+	Query string `json:"query"`
+	Args  []any  `json:"args,omitempty"`
+}
+
+// DatabaseQueryResponse carries query result rows and column headers.
+type DatabaseQueryResponse struct {
+	Rows    []map[string]any `json:"rows"`
+	Columns []string         `json:"columns,omitempty"`
+}
+
+// DatabaseExecRequest describes a parameterized SQL statement (INSERT, UPDATE, DELETE, DDL).
+type DatabaseExecRequest struct {
+	Query string `json:"query"`
+	Args  []any  `json:"args,omitempty"`
+}
+
+// DatabaseExecResponse reports the outcome of a database execution.
+type DatabaseExecResponse struct {
+	RowsAffected int64 `json:"rows_affected"`
+	LastInsertID int64 `json:"last_insert_id,omitempty"`
+}
+
+// HostDatabaseQueryRequest describes a parameterized SQL query requested by a plugin to the host.
+type HostDatabaseQueryRequest struct {
+	Query string `json:"query"`
+	Args  []any  `json:"args,omitempty"`
+}
+
+// HostDatabaseQueryResponse carries query results from the host.
+type HostDatabaseQueryResponse struct {
+	Rows    []map[string]any `json:"rows"`
+	Columns []string         `json:"columns,omitempty"`
+}
+
+// HostDatabaseExecRequest describes a parameterized SQL execution requested by a plugin to the host.
+type HostDatabaseExecRequest struct {
+	Query string `json:"query"`
+	Args  []any  `json:"args,omitempty"`
+}
+
+// HostDatabaseExecResponse reports execution outcome from the host.
+type HostDatabaseExecResponse struct {
+	RowsAffected int64 `json:"rows_affected"`
+	LastInsertID int64 `json:"last_insert_id,omitempty"`
 }

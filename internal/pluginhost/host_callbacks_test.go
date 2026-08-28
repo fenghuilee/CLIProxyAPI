@@ -750,3 +750,114 @@ func TestHostLogCallbackRestoresRegisteredRequestContext(t *testing.T) {
 		t.Fatalf("log output = %q, want message and request_id field", got)
 	}
 }
+
+type mockDatabaseProvider struct {
+	queryFunc func(ctx context.Context, req pluginapi.DatabaseQueryRequest) (pluginapi.DatabaseQueryResponse, error)
+	execFunc  func(ctx context.Context, req pluginapi.DatabaseExecRequest) (pluginapi.DatabaseExecResponse, error)
+}
+
+func (m *mockDatabaseProvider) Query(ctx context.Context, req pluginapi.DatabaseQueryRequest) (pluginapi.DatabaseQueryResponse, error) {
+	if m.queryFunc != nil {
+		return m.queryFunc(ctx, req)
+	}
+	return pluginapi.DatabaseQueryResponse{}, nil
+}
+
+func (m *mockDatabaseProvider) Exec(ctx context.Context, req pluginapi.DatabaseExecRequest) (pluginapi.DatabaseExecResponse, error) {
+	if m.execFunc != nil {
+		return m.execFunc(ctx, req)
+	}
+	return pluginapi.DatabaseExecResponse{}, nil
+}
+
+func TestHostDatabaseCallbacks(t *testing.T) {
+	host := New()
+	mockDB := &mockDatabaseProvider{
+		queryFunc: func(ctx context.Context, req pluginapi.DatabaseQueryRequest) (pluginapi.DatabaseQueryResponse, error) {
+			if req.Query == "SELECT * FROM test WHERE id = ?" && len(req.Args) == 1 && req.Args[0] == float64(123) {
+				return pluginapi.DatabaseQueryResponse{
+					Rows: []map[string]any{
+						{"id": float64(123), "name": "alice"},
+					},
+					Columns: []string{"id", "name"},
+				}, nil
+			}
+			return pluginapi.DatabaseQueryResponse{}, nil
+		},
+		execFunc: func(ctx context.Context, req pluginapi.DatabaseExecRequest) (pluginapi.DatabaseExecResponse, error) {
+			if req.Query == "INSERT INTO test (id, name) VALUES (?, ?)" {
+				return pluginapi.DatabaseExecResponse{
+					RowsAffected: 1,
+					LastInsertID: 456,
+				}, nil
+			}
+			return pluginapi.DatabaseExecResponse{}, nil
+		},
+	}
+
+	host.loaded["db-plugin"] = &loadedPlugin{
+		id:         "db-plugin",
+		registered: true,
+	}
+	host.activePluginPaths["db-plugin"] = "db-plugin.so"
+	host.activePluginVersions["db-plugin"] = "1.0.0"
+	host.pluginFileVersions["db-plugin.so"] = "1.0.0"
+	host.snapshot.Store(&Snapshot{
+		enabled: true,
+		records: []capabilityRecord{
+			{
+				id:       "db-plugin",
+				path:     "db-plugin.so",
+				version:  "1.0.0",
+				priority: 100,
+				plugin: pluginapi.Plugin{
+					Capabilities: pluginapi.Capabilities{
+						DatabaseProvider: mockDB,
+					},
+				},
+			},
+		},
+	})
+
+	// 1. Test Query callback
+	queryReq, _ := json.Marshal(pluginapi.HostDatabaseQueryRequest{
+		Query: "SELECT * FROM test WHERE id = ?",
+		Args:  []any{123},
+	})
+	rawResp, errCall := host.callFromPlugin(context.Background(), pluginabi.MethodHostDatabaseQuery, queryReq)
+	if errCall != nil {
+		t.Fatalf("host database query callback failed: %v", errCall)
+	}
+	var queryEnv pluginabi.Envelope
+	if err := json.Unmarshal(rawResp, &queryEnv); err != nil || !queryEnv.OK {
+		t.Fatalf("unexpected query envelope: %v", err)
+	}
+	var queryResp pluginapi.HostDatabaseQueryResponse
+	if err := json.Unmarshal(queryEnv.Result, &queryResp); err != nil {
+		t.Fatalf("unmarshal query response: %v", err)
+	}
+	if len(queryResp.Rows) != 1 || queryResp.Rows[0]["name"] != "alice" {
+		t.Fatalf("query response mismatch: %+v", queryResp)
+	}
+
+	// 2. Test Exec callback
+	execReq, _ := json.Marshal(pluginapi.HostDatabaseExecRequest{
+		Query: "INSERT INTO test (id, name) VALUES (?, ?)",
+		Args:  []any{456, "bob"},
+	})
+	rawExecResp, errCall := host.callFromPlugin(context.Background(), pluginabi.MethodHostDatabaseExec, execReq)
+	if errCall != nil {
+		t.Fatalf("host database exec callback failed: %v", errCall)
+	}
+	var execEnv pluginabi.Envelope
+	if err := json.Unmarshal(rawExecResp, &execEnv); err != nil || !execEnv.OK {
+		t.Fatalf("unexpected exec envelope: %v", err)
+	}
+	var execResp pluginapi.HostDatabaseExecResponse
+	if err := json.Unmarshal(execEnv.Result, &execResp); err != nil {
+		t.Fatalf("unmarshal exec response: %v", err)
+	}
+	if execResp.RowsAffected != 1 || execResp.LastInsertID != 456 {
+		t.Fatalf("exec response mismatch: %+v", execResp)
+	}
+}

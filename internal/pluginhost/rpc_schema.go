@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/router-for-me/CLIProxyAPI/v7/sdk/aigc"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
 )
 
@@ -44,6 +45,11 @@ type rpcCapabilities struct {
 	UsagePlugin                   bool                         `json:"usage_plugin"`
 	CommandLinePlugin             bool                         `json:"command_line_plugin"`
 	ManagementAPI                 bool                         `json:"management_api"`
+	ContentGenerationStore        bool                         `json:"content_generation_store"`
+	ContentGenerationMutator      bool                         `json:"content_generation_mutator"`
+	ContentGenerationDriver       bool                         `json:"content_generation_driver"`
+	ContentGenerationObserver     bool                         `json:"content_generation_observer"`
+	DatabaseProvider              bool                         `json:"database_provider"`
 }
 
 type rpcIdentifierResponse struct {
@@ -131,6 +137,85 @@ type rpcManagementRegistrationResponse struct {
 	Resources []pluginapi.ResourceRoute   `json:"resources,omitempty"`
 }
 
+type rpcContentGenerationStoreCreateRequest struct {
+	aigc.GenerationCreateRequest
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationStoreGetRequest struct {
+	aigc.GenerationGetRequest
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationStorePatchRequest struct {
+	aigc.GenerationPatchRequest
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationStoreClaimRequest struct {
+	aigc.GenerationClaimRequest
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationStoreReleaseRequest struct {
+	aigc.GenerationReleaseRequest
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationStoreDeleteExpiredRequest struct {
+	aigc.GenerationDeleteExpiredRequest
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationDeleteExpiredResponse struct {
+	Deleted int64 `json:"deleted"`
+}
+
+type rpcContentGenerationMutateRequest struct {
+	aigc.GenerationMutationRequest
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationEventRequest struct {
+	Event          aigc.ContentGenerationEvent `json:"event"`
+	HostCallbackID string                      `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationDriverSupportsRequest struct {
+	aigc.GenerationSupportRequest
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationDriverPrepareSubmitRequest struct {
+	aigc.GenerationSubmitInput
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationDriverParseSubmitRequest struct {
+	Response       aigc.GenerationExecutionResponse `json:"response"`
+	HostCallbackID string                           `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationDriverPreparePollRequest struct {
+	aigc.GenerationPollInput
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationDriverParsePollRequest struct {
+	Response       aigc.GenerationExecutionResponse `json:"response"`
+	HostCallbackID string                           `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationDriverPrepareCancelRequest struct {
+	aigc.GenerationCancelInput
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
+type rpcContentGenerationDriverParseCancelRequest struct {
+	Response       aigc.GenerationExecutionResponse `json:"response"`
+	HostCallbackID string                           `json:"host_callback_id,omitempty"`
+}
+
 type rpcEmptyResponse struct{}
 
 func rpcCapabilitiesFromPlugin(plugin pluginapi.Plugin) rpcCapabilities {
@@ -161,6 +246,11 @@ func rpcCapabilitiesFromPlugin(plugin pluginapi.Plugin) rpcCapabilities {
 		UsagePlugin:                   caps.UsagePlugin != nil,
 		CommandLinePlugin:             caps.CommandLinePlugin != nil,
 		ManagementAPI:                 caps.ManagementAPI != nil,
+		ContentGenerationStore:        caps.ContentGenerationStore != nil,
+		ContentGenerationMutator:      caps.ContentGenerationMutator != nil,
+		ContentGenerationDriver:       caps.ContentGenerationDriver != nil,
+		ContentGenerationObserver:     caps.ContentGenerationObserver != nil,
+		DatabaseProvider:              caps.DatabaseProvider != nil,
 	}
 }
 

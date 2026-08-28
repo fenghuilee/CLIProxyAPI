@@ -146,7 +146,11 @@ func (a *usageAdapter) HandleUsage(ctx context.Context, record coreusage.Record)
 			a.host.fusePlugin(a.pluginID, "UsagePlugin.HandleUsage", recovered)
 		}
 	}()
-	plugin.HandleUsage(ctx, pluginapi.UsageRecord{
+	callCtx := context.Background()
+	if ctx != nil {
+		callCtx = context.WithoutCancel(ctx)
+	}
+	plugin.HandleUsage(callCtx, pluginapi.UsageRecord{
 		Provider:        record.Provider,
 		ExecutorType:    record.ExecutorType,
 		Model:           record.Model,

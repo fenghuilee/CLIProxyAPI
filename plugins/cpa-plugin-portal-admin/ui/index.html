@@ -1,0 +1,4381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>运营中心</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #09090b;
+      --surface: #121215;
+      --surface-elevated: #18181b;
+      --surface-hover: #1f1f23;
+      --surface-active: #27272a;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-focus: rgba(99, 102, 241, 0.5);
+      --text-1: #fafafa;
+      --text-2: #a1a1aa;
+      --text-3: #71717a;
+      --text-muted: #52525b;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-subtle: rgba(99, 102, 241, 0.12);
+      --success: #10b981;
+      --success-subtle: rgba(16, 185, 129, 0.12);
+      --warning: #f59e0b;
+      --warning-subtle: rgba(245, 158, 11, 0.12);
+      --danger: #ef4444;
+      --danger-subtle: rgba(239, 68, 68, 0.12);
+      --radius-sm: 6px;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+      --shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.6);
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    [data-theme="light"], :root.light {
+      color-scheme: light;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-elevated: #ffffff;
+      --surface-hover: #f1f5f9;
+      --surface-active: #e2e8f0;
+      --border: #e2e8f0;
+      --border-subtle: #f1f5f9;
+      --border-focus: rgba(79, 70, 229, 0.4);
+      --text-1: #0f172a;
+      --text-2: #475569;
+      --text-3: #94a3b8;
+      --text-muted: #cbd5e1;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-subtle: rgba(79, 70, 229, 0.08);
+      --success: #059669;
+      --success-subtle: rgba(5, 150, 105, 0.08);
+      --warning: #d97706;
+      --warning-subtle: rgba(217, 119, 6, 0.08);
+      --danger: #dc2626;
+      --danger-subtle: rgba(220, 38, 38, 0.08);
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-1);
+      line-height: 1.5;
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+    }
+
+    .font-mono {
+      font-family: var(--font-mono);
+    }
+
+    .app-layout {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 52px;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent) 0%, #a855f7 100%);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text-1);
+    }
+
+    .brand-tag {
+      font-size: 11px;
+      color: var(--text-3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--surface-hover);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Segmented Navigation */
+    .nav-bar {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      gap: 2px;
+      overflow-x: auto;
+    }
+
+    .nav-item {
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-item:hover {
+      color: var(--text-1);
+    }
+
+    .nav-item.active {
+      color: var(--text-1);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Main Container */
+    .content-area {
+      padding: 20px;
+      max-width: 1480px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+    }
+
+    .tab-view {
+      display: none;
+    }
+
+    .tab-view.active {
+      display: block;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      outline: none;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-default {
+      background-color: var(--surface-elevated);
+      border-color: var(--border);
+      color: var(--text-1);
+    }
+
+    .btn-default:hover {
+      background-color: var(--surface-hover);
+      border-color: var(--text-3);
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-danger {
+      background-color: var(--danger-subtle);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-2);
+    }
+
+    .btn-ghost:hover {
+      background: var(--surface-hover);
+      color: var(--text-1);
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+    }
+
+    /* Inputs & Controls */
+    .input-control, .select-control {
+      background-color: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-1);
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s ease;
+      font-family: inherit;
+    }
+
+    .input-control:focus, .select-control:focus {
+      border-color: var(--border-focus);
+    }
+
+    /* Date Range Filter Group */
+    .date-filter-group {
+      display: inline-flex;
+      align-items: center;
+      background-color: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0 8px;
+      gap: 4px;
+      height: 31px;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .date-filter-group:focus-within {
+      border-color: var(--border-focus);
+    }
+
+    .date-filter-group input[type="date"] {
+      background: transparent;
+      border: none;
+      color: var(--text-1);
+      font-size: 12px;
+      padding: 3px 0;
+      outline: none;
+      font-family: var(--font-mono);
+      width: 110px;
+    }
+
+    .date-filter-group input[type="date"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.15s ease;
+    }
+
+    .date-filter-group input[type="date"]::-webkit-calendar-picker-indicator:hover {
+      opacity: 1;
+    }
+
+    .date-filter-group .date-sep {
+      color: var(--text-3);
+      font-size: 11px;
+      user-select: none;
+      padding: 0 2px;
+    }
+
+    .search-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .search-wrapper svg {
+      position: absolute;
+      left: 10px;
+      color: var(--text-3);
+      pointer-events: none;
+    }
+
+    .search-wrapper input {
+      padding-left: 30px;
+      width: 240px;
+    }
+
+    .search-wrapper kbd {
+      position: absolute;
+      right: 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-3);
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    /* Metric Strip */
+    .metrics-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .metric-cell {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.15s ease;
+    }
+
+    .metric-cell:hover {
+      border-color: var(--text-3);
+    }
+
+    .metric-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+      letter-spacing: 0.02em;
+    }
+
+    .metric-icon {
+      color: var(--text-3);
+    }
+
+    .metric-value {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-1);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-sub {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-3);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Data Panels & Tables */
+    .panel {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .panel-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text-1);
+    }
+
+    .panel-count {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-3);
+      background: var(--surface-hover);
+      padding: 1px 6px;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .data-table-wrap {
+      overflow-x: auto;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    .data-table th {
+      padding: 10px 16px;
+      color: var(--text-3);
+      font-weight: 500;
+      font-size: 11px;
+      letter-spacing: 0.03em;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.02);
+      white-space: nowrap;
+    }
+
+    .data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-2);
+      vertical-align: middle;
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tr:hover td {
+      background-color: var(--surface-hover);
+      color: var(--text-1);
+    }
+
+    .td-primary {
+      color: var(--text-1);
+      font-weight: 500;
+    }
+
+    /* Status Dots */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-active {
+      background-color: var(--success-subtle);
+      border-color: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+    }
+    .status-active .status-dot { background-color: var(--success); }
+
+    .status-pending {
+      background-color: var(--warning-subtle);
+      border-color: rgba(245, 158, 11, 0.2);
+      color: var(--warning);
+    }
+    .status-pending .status-dot { background-color: var(--warning); }
+
+    .status-danger {
+      background-color: var(--danger-subtle);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+    }
+    .status-danger .status-dot { background-color: var(--danger); }
+
+    .status-neutral {
+      background-color: var(--surface-hover);
+      border-color: var(--border);
+      color: var(--text-2);
+    }
+    .status-neutral .status-dot { background-color: var(--text-3); }
+
+    /* Chips */
+    .copy-chip {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--surface-hover);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-2);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .copy-chip:hover {
+      color: var(--text-1);
+      border-color: var(--text-3);
+    }
+
+    .pagination-bar {
+      padding: 10px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-3);
+      background: rgba(0, 0, 0, 0.01);
+    }
+
+    /* Side Drawer for AIGC */
+    .drawer-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      justify-content: flex-end;
+    }
+
+    .drawer-overlay.open {
+      display: flex;
+    }
+
+    .drawer-panel {
+      background-color: var(--surface);
+      border-left: 1px solid var(--border);
+      width: 100%;
+      max-width: 640px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+      animation: slideInRight 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideInRight {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .drawer-title-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .drawer-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+
+    .drawer-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .drawer-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface-elevated);
+    }
+
+    /* Detail Card in Drawer */
+    .detail-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+
+    .detail-card-header {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-1);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px 16px;
+      font-size: 12px;
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .meta-item-label {
+      font-size: 11px;
+      color: var(--text-3);
+    }
+
+    .meta-item-value {
+      color: var(--text-1);
+    }
+
+    /* Video Player & Media Container */
+    .media-preview-box {
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: #000;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+
+    .media-preview-box video {
+      width: 100%;
+      max-height: 360px;
+      display: block;
+      outline: none;
+    }
+
+    .media-preview-box img {
+      width: 100%;
+      max-height: 360px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .media-action-bar {
+      margin-top: 8px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* Prompt Box */
+    .prompt-box {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      font-size: 12px;
+      color: var(--text-1);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      position: relative;
+    }
+
+    /* Code Inspector Accordion */
+    .collapsible-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      padding: 8px 10px;
+      background: var(--surface-hover);
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-2);
+      user-select: none;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .collapsible-header:hover {
+      color: var(--text-1);
+    }
+
+    /* Enhanced JSON / Code Viewer */
+    .json-viewer-container {
+      background: #090c10;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-top: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    .json-viewer-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-3);
+    }
+
+    .json-viewer-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+    }
+
+    .json-viewer-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .json-viewer-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .json-viewer-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-color: var(--border-focus);
+    }
+
+    .json-code-body {
+      padding: 12px 14px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.6;
+      color: #cbd5e1;
+      overflow: auto;
+      max-height: 380px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* JSON Syntax Tokens */
+    .json-token-key {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    .json-token-str {
+      color: #34d399;
+    }
+
+    .json-token-num {
+      color: #fbbf24;
+    }
+
+    .json-token-bool {
+      color: #a78bfa;
+      font-weight: 600;
+    }
+
+    .json-token-null {
+      color: #94a3b8;
+      font-style: italic;
+    }
+
+    .json-token-punc {
+      color: #64748b;
+    }
+
+    .json-fold-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 10.5px;
+      cursor: pointer;
+      user-select: none;
+      margin: 0 4px;
+      vertical-align: middle;
+      font-family: var(--font-mono);
+    }
+
+    .json-fold-btn:hover {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: #38bdf8;
+    }
+
+    .code-inspector {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-2);
+      overflow-x: auto;
+      max-height: 220px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin-top: 6px;
+    }
+
+    /* Modals */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-dialog {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 500px;
+      box-shadow: var(--shadow-lg);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      animation: modalScale 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalScale {
+      from { transform: scale(0.96); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      background: var(--surface-elevated);
+      border-bottom-left-radius: var(--radius-lg);
+      border-bottom-right-radius: var(--radius-lg);
+    }
+
+    .form-row {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+      margin-bottom: 6px;
+    }
+
+    /* Calculator Box in Adjust Modal */
+    .calc-preview {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center;
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    .calc-step {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .calc-step-label {
+      font-size: 10px;
+      color: var(--text-3);
+    }
+
+    .calc-step-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .presets-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .preset-chip {
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--surface-hover);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-2);
+      cursor: pointer;
+    }
+
+    .preset-chip:hover {
+      background: var(--surface-active);
+      color: var(--text-1);
+    }
+
+    /* Toasts */
+    .toast-stack {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 120;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast-msg {
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      background-color: var(--surface-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-1);
+      box-shadow: var(--shadow);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: toastSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast-msg.success { border-left: 3px solid var(--success); }
+    .toast-msg.error { border-left: 3px solid var(--danger); }
+
+    @keyframes toastSlide {
+      from { transform: translateY(12px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Doc Article Markdown Editor & Preview */
+    .doc-editor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      min-height: 480px;
+    }
+    @media (max-width: 900px) {
+      .doc-editor-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .doc-editor-toolbar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      padding: 6px 10px;
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      flex-wrap: wrap;
+    }
+    .doc-editor-textarea {
+      width: 100%;
+      height: 420px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      color: var(--text-1);
+      resize: vertical;
+      outline: none;
+    }
+    .doc-preview-pane {
+      height: 454px;
+      overflow-y: auto;
+      padding: 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-1);
+    }
+    .doc-preview-pane table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 12px;
+    }
+    .doc-preview-pane th, .doc-preview-pane td {
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      text-align: left;
+    }
+    .doc-preview-pane th {
+      background: var(--surface-elevated);
+      font-weight: 600;
+    }
+    .doc-preview-pane pre {
+      background: var(--surface-elevated);
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      margin: 10px 0;
+      color: #93c5fd;
+    }
+    .doc-preview-pane code:not(pre code) {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--accent-subtle);
+      color: var(--accent);
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .doc-preview-pane blockquote {
+      border-left: 3px solid var(--accent);
+      padding: 6px 12px;
+      margin: 10px 0;
+      background: var(--accent-subtle);
+      color: var(--text-2);
+    }
+  </style>
+  <script src="https://registry.npmmirror.com/marked/12.0.2/files/marked.min.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Navigation Bar -->
+    <header class="top-bar">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M3 9h18" />
+            <path d="M9 21V9" />
+          </svg>
+        </div>
+        <span class="brand-title">运营中心</span>
+        <span class="brand-tag">运营控制台</span>
+      </div>
+      <div class="top-actions">
+        <button class="btn btn-default btn-sm" onclick="openKeyModal()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+          密钥设置
+        </button>
+        <button class="btn btn-default btn-sm" onclick="refreshCurrentTab()" title="刷新 (快捷键: R)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+          刷新
+        </button>
+      </div>
+    </header>
+
+    <!-- Segmented Tab Navigation -->
+    <nav class="nav-bar">
+      <div class="nav-item active" onclick="switchTab('dashboard')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        大盘总览
+      </div>
+      <div class="nav-item" onclick="switchTab('users')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        用户与额度
+      </div>
+      <div class="nav-item" onclick="switchTab('groups')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+        模型分组
+      </div>
+      <div class="nav-item" onclick="switchTab('recharge')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+        充值与流水
+      </div>
+      <div class="nav-item" onclick="switchTab('packages')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+        套餐配置
+      </div>
+      <div class="nav-item" onclick="switchTab('usage')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        请求审计
+      </div>
+      <div class="nav-item" onclick="switchTab('aigc')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>
+        AIGC 任务中心
+      </div>
+      <div class="nav-item" onclick="switchTab('error-rules')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/></svg>
+        错误规则配置
+      </div>
+      <div class="nav-item" onclick="switchTab('docs')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        API 文章管理
+      </div>
+    </nav>
+
+    <!-- Main Workspace -->
+    <main class="content-area">
+      <!-- 1. Dashboard View -->
+      <section id="view-dashboard" class="tab-view active">
+        <div class="metrics-bar">
+          <div class="metric-cell">
+            <div class="metric-header">
+              <span class="metric-label">注册用户总量</span>
+              <svg class="metric-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+            <div class="metric-value tabular-nums" id="stat-total-users">-</div>
+            <div class="metric-sub" id="stat-active-users">正常账户: -</div>
+          </div>
+
+          <div class="metric-cell">
+            <div class="metric-header">
+              <span class="metric-label">全平台充值流水</span>
+              <svg class="metric-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+            </div>
+            <div class="metric-value tabular-nums" id="stat-total-recharge">¥0.00</div>
+            <div class="metric-sub">实际支付到账总金额</div>
+          </div>
+
+          <div class="metric-cell">
+            <div class="metric-header">
+              <span class="metric-label">累计消耗积分</span>
+              <svg class="metric-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+            </div>
+            <div class="metric-value tabular-nums" id="stat-total-used">0.00000000</div>
+            <div class="metric-sub">API 与 AIGC 综合扣减</div>
+          </div>
+
+          <div class="metric-cell">
+            <div class="metric-header">
+              <span class="metric-label">API 调用总次数</span>
+              <svg class="metric-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+            <div class="metric-value tabular-nums" id="stat-total-reqs">-</div>
+            <div class="metric-sub" id="stat-today-reqs">今日调用: -</div>
+          </div>
+
+          <div class="metric-cell">
+            <div class="metric-header">
+              <span class="metric-label">AIGC 任务总数</span>
+              <svg class="metric-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 8 6 4-6 4Z"/></svg>
+            </div>
+            <div class="metric-value tabular-nums" id="stat-total-aigc">-</div>
+            <div class="metric-sub" id="stat-running-aigc">当前执行中: -</div>
+          </div>
+        </div>
+
+        <!-- Two Column Breakdown -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="panel-title">用户消耗排行 (前 5 名)</span>
+              </div>
+            </div>
+            <div class="data-table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>用户名</th>
+                    <th style="text-align: right;">可用余额</th>
+                    <th style="text-align: right;">累计消耗</th>
+                  </tr>
+                </thead>
+                <tbody id="top-users-tbody">
+                  <tr><td colspan="3" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="panel-title">热门模型调用排行 (前 5 名)</span>
+              </div>
+            </div>
+            <div class="data-table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>模型标识</th>
+                    <th style="text-align: right;">调用次数</th>
+                    <th style="text-align: right;">消耗 Token</th>
+                  </tr>
+                </thead>
+                <tbody id="top-models-tbody">
+                  <tr><td colspan="3" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Users View -->
+      <section id="view-users" class="tab-view">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-title">用户账户与额度管理</span>
+              <span class="panel-count" id="users-total-badge">0</span>
+            </div>
+            <div class="toolbar">
+              <div class="search-wrapper">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="users-search" class="input-control" placeholder="搜索用户名..." onkeydown="if(event.key==='Enter')loadUsers(1)">
+                <kbd>/</kbd>
+              </div>
+              <select id="users-status-select" class="select-control" onchange="loadUsers(1)">
+                <option value="">全部状态</option>
+                <option value="1">正常 (已启用)</option>
+                <option value="0">已禁用</option>
+              </select>
+              <button class="btn btn-default" onclick="loadUsers(1)">查询</button>
+            </div>
+          </div>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">ID</th>
+                  <th>用户名</th>
+                  <th>角色</th>
+                  <th>模型分组</th>
+                  <th style="text-align: right;">可用余额 (积分)</th>
+                  <th style="text-align: right;">冻结积分</th>
+                  <th style="text-align: right;">累计消耗</th>
+                  <th>账户状态</th>
+                  <th>注册时间</th>
+                  <th style="text-align: right; width: 170px;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="users-tbody">
+                <tr><td colspan="10" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <span id="users-page-info">第 1 页</span>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-default btn-sm" id="users-prev-btn" onclick="prevUsersPage()">上一页</button>
+              <button class="btn btn-default btn-sm" id="users-next-btn" onclick="nextUsersPage()">下一页</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2.1 Model Groups View -->
+      <section id="view-groups" class="tab-view">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-title">模型分组权限配置</span>
+              <span class="panel-count" id="groups-total-badge">0</span>
+            </div>
+            <div class="toolbar">
+              <button class="btn btn-primary" onclick="openModelGroupModal()">+ 新建模型分组</button>
+            </div>
+          </div>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">ID</th>
+                  <th>分组标识 (Name)</th>
+                  <th>展示名称</th>
+                  <th>允许模型规则 (Models)</th>
+                  <th>状态</th>
+                  <th>更新时间</th>
+                  <th style="text-align: right; width: 140px;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="groups-tbody">
+                <tr><td colspan="7" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Recharge & Ledger View -->
+      <section id="view-recharge" class="tab-view">
+        <!-- Recharge Orders -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-title">充值订单记录</span>
+              <span class="panel-count" id="orders-total-badge">0</span>
+            </div>
+            <div class="toolbar">
+              <div class="search-wrapper">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="orders-search" class="input-control" placeholder="搜索单号/用户名..." onkeydown="if(event.key==='Enter')loadOrders(1)">
+              </div>
+              <select id="orders-channel-select" class="select-control" onchange="loadOrders(1)">
+                <option value="">全部渠道</option>
+                <option value="wechat">微信支付</option>
+                <option value="alipay">支付宝</option>
+              </select>
+              <select id="orders-status-select" class="select-control" onchange="loadOrders(1)">
+                <option value="">全部状态</option>
+                <option value="paid">已支付</option>
+                <option value="pending">待支付</option>
+                <option value="failed">支付失败</option>
+              </select>
+              <div class="date-filter-group" title="按订单创建时间筛选">
+                <input type="date" id="orders-date-from" title="开始日期" onchange="loadOrders(1)">
+                <span class="date-sep">至</span>
+                <input type="date" id="orders-date-to" title="结束日期" onchange="loadOrders(1)">
+              </div>
+              <select id="orders-date-preset" class="select-control" onchange="applyDatePreset('orders', this.value)">
+                <option value="">快捷日期</option>
+                <option value="today">今天</option>
+                <option value="yesterday">昨天</option>
+                <option value="7d">近 7 天</option>
+                <option value="30d">近 30 天</option>
+                <option value="this_month">本月</option>
+                <option value="clear">清除日期</option>
+              </select>
+              <button class="btn btn-default" onclick="loadOrders(1)">查询</button>
+              <button class="btn btn-default" onclick="resetOrdersFilter()" title="重置全部筛选">重置</button>
+            </div>
+          </div>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>商户订单号</th>
+                  <th>用户名</th>
+                  <th style="text-align: right;">支付金额 (元)</th>
+                  <th style="text-align: right;">到账积分</th>
+                  <th>支付渠道</th>
+                  <th>第三方交易号</th>
+                  <th>支付状态</th>
+                  <th>时间</th>
+                  <th style="text-align: right;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="orders-tbody">
+                <tr><td colspan="9" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <span id="orders-page-info">第 1 页</span>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-default btn-sm" id="orders-prev-btn" onclick="prevOrdersPage()">上一页</button>
+              <button class="btn btn-default btn-sm" id="orders-next-btn" onclick="nextOrdersPage()">下一页</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wallet Ledger -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-title">钱包账本流水 (不可变审计)</span>
+              <span class="panel-count" id="ledger-total-badge">0</span>
+            </div>
+            <div class="toolbar">
+              <div class="search-wrapper">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="ledger-search" class="input-control" placeholder="搜索用户/备注..." onkeydown="if(event.key==='Enter')loadLedgers(1)">
+              </div>
+              <select id="ledger-type-select" class="select-control" onchange="loadLedgers(1)">
+                <option value="">全部流水类型</option>
+                <option value="recharge">充值入账</option>
+                <option value="manual_adjust">人工调账</option>
+                <option value="token_deduct">Token扣费</option>
+                <option value="call_deduct">按次扣费</option>
+                <option value="aigc_freeze">AIGC冻结</option>
+                <option value="aigc_settle">AIGC结算</option>
+                <option value="aigc_refund">AIGC退款</option>
+              </select>
+              <div class="date-filter-group" title="按流水记录时间筛选">
+                <input type="date" id="ledger-date-from" title="开始日期" onchange="loadLedgers(1)">
+                <span class="date-sep">至</span>
+                <input type="date" id="ledger-date-to" title="结束日期" onchange="loadLedgers(1)">
+              </div>
+              <select id="ledger-date-preset" class="select-control" onchange="applyDatePreset('ledger', this.value)">
+                <option value="">快捷日期</option>
+                <option value="today">今天</option>
+                <option value="yesterday">昨天</option>
+                <option value="7d">近 7 天</option>
+                <option value="30d">近 30 天</option>
+                <option value="this_month">本月</option>
+                <option value="clear">清除日期</option>
+              </select>
+              <button class="btn btn-default" onclick="loadLedgers(1)">查询</button>
+              <button class="btn btn-default" onclick="resetLedgerFilter()" title="重置全部筛选">重置</button>
+            </div>
+          </div>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 70px;">流水ID</th>
+                  <th>用户名</th>
+                  <th>业务类型</th>
+                  <th style="text-align: right;">可用变动</th>
+                  <th style="text-align: right;">冻结变动</th>
+                  <th style="text-align: right;">变动后余额</th>
+                  <th>关联单号 / 摘要备注</th>
+                  <th>记录时间</th>
+                </tr>
+              </thead>
+              <tbody id="ledger-tbody">
+                <tr><td colspan="8" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <span id="ledger-page-info">第 1 页</span>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-default btn-sm" id="ledger-prev-btn" onclick="prevLedgerPage()">上一页</button>
+              <button class="btn btn-default btn-sm" id="ledger-next-btn" onclick="nextLedgerPage()">下一页</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Packages View -->
+      <section id="view-packages" class="tab-view">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-title">充值套餐配置</span>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openPackageModal()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              新建套餐
+            </button>
+          </div>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">ID</th>
+                  <th>套餐编码</th>
+                  <th>展示名称</th>
+                  <th>支付渠道</th>
+                  <th style="text-align: right;">支付金额 (元)</th>
+                  <th style="text-align: right;">到账积分</th>
+                  <th>排序</th>
+                  <th>状态</th>
+                  <th style="text-align: right; width: 120px;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="packages-tbody">
+                <tr><td colspan="9" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. Usage Logs View -->
+      <section id="view-usage" class="tab-view">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-title">API 请求全量审计明细</span>
+              <span class="panel-count" id="usage-total-badge">0</span>
+            </div>
+            <div class="toolbar">
+              <div class="search-wrapper">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="usage-search" class="input-control" placeholder="搜索用户/API Key/IP..." onkeydown="if(event.key==='Enter')loadUsage(1)">
+              </div>
+              <input type="text" id="usage-model" class="input-control" style="width: 140px;" placeholder="模型标识..." onkeydown="if(event.key==='Enter')loadUsage(1)">
+              <select id="usage-outcome" class="select-control" onchange="loadUsage(1)">
+                <option value="">全部状态</option>
+                <option value="succeeded">成功 (200 OK)</option>
+                <option value="failed">失败 (异常拦截)</option>
+              </select>
+              <div class="date-filter-group" title="按请求时间筛选">
+                <input type="date" id="usage-date-from" title="开始日期" onchange="loadUsage(1)">
+                <span class="date-sep">至</span>
+                <input type="date" id="usage-date-to" title="结束日期" onchange="loadUsage(1)">
+              </div>
+              <select id="usage-date-preset" class="select-control" onchange="applyDatePreset('usage', this.value)">
+                <option value="">快捷日期</option>
+                <option value="today">今天</option>
+                <option value="yesterday">昨天</option>
+                <option value="7d">近 7 天</option>
+                <option value="30d">近 30 天</option>
+                <option value="this_month">本月</option>
+                <option value="clear">清除日期</option>
+              </select>
+              <button class="btn btn-default" onclick="loadUsage(1)">查询</button>
+              <button class="btn btn-default" onclick="resetUsageFilter()" title="重置全部筛选">重置</button>
+            </div>
+          </div>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>请求时间</th>
+                  <th>关联用户 / 密钥</th>
+                  <th>渠道 / 模型</th>
+                  <th style="text-align: right;">总 Token</th>
+                  <th>输入 / 输出 / 推理</th>
+                  <th>总耗时 (首字)</th>
+                  <th>响应状态</th>
+                  <th style="text-align: right;">详情</th>
+                </tr>
+              </thead>
+              <tbody id="usage-tbody">
+                <tr><td colspan="8" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <span id="usage-page-info">第 1 页</span>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-default btn-sm" id="usage-prev-btn" onclick="prevUsagePage()">上一页</button>
+              <button class="btn btn-default btn-sm" id="usage-next-btn" onclick="nextUsagePage()">下一页</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. AIGC Tasks View -->
+      <section id="view-aigc" class="tab-view">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-title">AIGC 任务中心</span>
+              <span class="panel-count" id="aigc-total-badge">0</span>
+            </div>
+            <div class="toolbar">
+              <div class="search-wrapper">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="aigc-search" class="input-control" placeholder="搜索任务ID/用户..." onkeydown="if(event.key==='Enter')loadAIGC(1)">
+              </div>
+              <select id="aigc-kind" class="select-control" onchange="loadAIGC(1)">
+                <option value="">全部类型</option>
+                <option value="video">视频生成</option>
+                <option value="image">图片生成</option>
+                <option value="audio">音频生成</option>
+              </select>
+              <select id="aigc-status" class="select-control" onchange="loadAIGC(1)">
+                <option value="">全部状态</option>
+                <option value="running">生成中</option>
+                <option value="pending">排队中</option>
+                <option value="succeeded">已完成</option>
+                <option value="failed">生成失败</option>
+                <option value="canceled">已取消</option>
+              </select>
+              <div class="date-filter-group" title="按任务创建时间筛选">
+                <input type="date" id="aigc-date-from" title="开始日期" onchange="loadAIGC(1)">
+                <span class="date-sep">至</span>
+                <input type="date" id="aigc-date-to" title="结束日期" onchange="loadAIGC(1)">
+              </div>
+              <select id="aigc-date-preset" class="select-control" onchange="applyDatePreset('aigc', this.value)">
+                <option value="">快捷日期</option>
+                <option value="today">今天</option>
+                <option value="yesterday">昨天</option>
+                <option value="7d">近 7 天</option>
+                <option value="30d">近 30 天</option>
+                <option value="this_month">本月</option>
+                <option value="clear">清除日期</option>
+              </select>
+              <button class="btn btn-default" onclick="loadAIGC(1)">查询</button>
+              <button class="btn btn-default" onclick="resetAIGCFilter()" title="重置全部筛选">重置</button>
+            </div>
+          </div>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>任务标识 (ID)</th>
+                  <th>所属用户</th>
+                  <th>类型 / 模型</th>
+                  <th>阶段 / 进度</th>
+                  <th>当前状态</th>
+                  <th>创建时间</th>
+                  <th style="text-align: right; width: 140px;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="aigc-tbody">
+                <tr><td colspan="7" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <span id="aigc-page-info">第 1 页</span>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-default btn-sm" id="aigc-prev-btn" onclick="prevAIGCPage()">上一页</button>
+              <button class="btn btn-default btn-sm" id="aigc-next-btn" onclick="nextAIGCPage()">下一页</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. Error Mapping Rules View -->
+      <section id="view-error-rules" class="tab-view">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">错误映射规则与待办归集</div>
+              <div class="panel-subtitle">动态配置上游供应商错误码转换字典，零重启热生效，统一对外标准码与中文文案</div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="btn btn-default btn-sm" onclick="openUnclassifiedErrorsModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                未分类错误待办箱
+              </button>
+              <button class="btn btn-default btn-sm" onclick="openRuleTestModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                规则在线测试
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="openCreateRuleModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                新建映射规则
+              </button>
+            </div>
+          </div>
+
+          <div class="table-toolbar">
+            <div class="search-wrapper">
+              <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="rule-search" placeholder="搜索特征串、标准码、文案或说明..." onkeydown="if(event.key==='Enter')loadErrorRules(1)">
+            </div>
+            <select id="rule-provider-filter" class="select-control" onchange="loadErrorRules(1)">
+              <option value="all">全部供应商通配</option>
+              <option value="volcengine*">火山引擎 (volcengine*)</option>
+              <option value="qwen*">通义千问 (qwen*)</option>
+              <option value="kling*">快手可灵 (kling*)</option>
+              <option value="openai*">OpenAI / 兼容 (openai*)</option>
+              <option value="*">通用通配 (*)</option>
+            </select>
+            <select id="rule-status-filter" class="select-control" onchange="loadErrorRules(1)">
+              <option value="all">全部状态</option>
+              <option value="1">已启用</option>
+              <option value="0">已禁用</option>
+            </select>
+            <button class="btn btn-default btn-sm" onclick="loadErrorRules(1)">查询</button>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 50px;">ID</th>
+                  <th style="width: 120px;">供应商 (Provider)</th>
+                  <th style="width: 140px;">匹配类型</th>
+                  <th>匹配特征串 / 表达式</th>
+                  <th style="width: 140px;">映射标准码</th>
+                  <th style="width: 70px;">状态码</th>
+                  <th>用户友好文案</th>
+                  <th style="width: 60px;">优先级</th>
+                  <th style="width: 70px;">状态</th>
+                  <th style="width: 110px; text-align: right;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="error-rules-tbody">
+                <tr><td colspan="10" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <span id="error-rules-page-info">第 1 页</span>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-default btn-sm" id="rule-prev-btn" onclick="prevErrorRulesPage()">上一页</button>
+              <button class="btn btn-default btn-sm" id="rule-next-btn" onclick="nextErrorRulesPage()">下一页</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9. API Docs Management View -->
+      <section id="view-docs" class="tab-view">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">API 对接指南与文章管理</div>
+              <div class="panel-subtitle">维护 Portal 开放平台前台展示的 API 文档 Tab 文章，支持 Markdown 源码编辑、变量注入与实时渲染</div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="btn btn-primary btn-sm" onclick="openCreateDocModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                新建 API 文档
+              </button>
+            </div>
+          </div>
+
+          <div class="table-toolbar">
+            <div class="search-wrapper">
+              <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="doc-search" placeholder="搜索标题、Slug 或徽章..." onkeydown="if(event.key==='Enter')loadDocs()">
+            </div>
+            <select id="doc-category-filter" class="select-control" onchange="loadDocs()">
+              <option value="all">全部分类</option>
+              <option value="guide">新手入门 (guide)</option>
+              <option value="tools">客户端工具 (tools)</option>
+              <option value="aigc">AIGC 视频/图像 (aigc)</option>
+              <option value="llm">大语言模型 (llm)</option>
+            </select>
+            <select id="doc-status-filter" class="select-control" onchange="loadDocs()">
+              <option value="all">全部状态</option>
+              <option value="1">已发布</option>
+              <option value="0">草稿</option>
+            </select>
+            <button class="btn btn-default btn-sm" onclick="loadDocs()">查询</button>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 60px; text-align: center;">排序</th>
+                  <th style="width: 220px;">文档标题</th>
+                  <th style="width: 140px;">Slug 标识</th>
+                  <th style="width: 100px;">分类</th>
+                  <th style="width: 90px; text-align: center;">图标</th>
+                  <th style="width: 90px; text-align: center;">状态</th>
+                  <th style="width: 150px;">更新时间</th>
+                  <th style="width: 140px; text-align: right;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="docs-tbody">
+                <tr><td colspan="8" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- API Doc Article Edit Modal -->
+  <div id="modal-doc-edit" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-doc-edit')">
+    <div class="modal-dialog" style="max-width: 1100px; width: 95vw;">
+      <div class="modal-header">
+        <span id="modal-doc-title">编辑 API 文档</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-doc-edit')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="doc-id" value="">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px;">
+          <div class="form-row" style="margin: 0;">
+            <label class="form-label">文档标题 *</label>
+            <input type="text" id="doc-title" class="input-control" placeholder="例如：AIGC 视频生成 API">
+          </div>
+          <div class="form-row" style="margin: 0;">
+            <label class="form-label">Slug 唯一标识 *</label>
+            <input type="text" id="doc-slug" class="input-control font-mono" placeholder="例如：aigc-video">
+          </div>
+          <div class="form-row" style="margin: 0;">
+            <label class="form-label">Tab 徽章 (Badge)</label>
+            <input type="text" id="doc-badge" class="input-control" placeholder="例如：AIGC 视频 / 必读">
+          </div>
+          <div class="form-row" style="margin: 0;">
+            <label class="form-label">分类 (Category)</label>
+            <input type="text" id="doc-category" class="input-control" placeholder="guide, tools, aigc, llm">
+          </div>
+          <div class="form-row" style="margin: 0;">
+            <label class="form-label">图标 (Icon)</label>
+            <select id="doc-icon" class="select-control" style="width:100%;">
+              <option value="file-text">file-text (通用文档)</option>
+              <option value="video">video (视频生成)</option>
+              <option value="message-square">message-square (对话模型)</option>
+              <option value="zap">zap (快速入门)</option>
+              <option value="layout">layout (客户端配置)</option>
+              <option value="alert-circle">alert-circle (状态码与错误)</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin: 0;">
+            <label class="form-label">排序权重</label>
+            <input type="number" id="doc-sort-order" class="input-control" value="0" placeholder="数值越小越靠前">
+          </div>
+          <div class="form-row" style="margin: 0; display: flex; align-items: center; padding-top: 20px;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--text-1);">
+              <input type="checkbox" id="doc-status" checked style="accent-color: var(--accent); width: 15px; height: 15px;">
+              <span>公开发布 (前台展示)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Markdown Dual Pane Editor -->
+        <div class="doc-editor-grid">
+          <div style="display: flex; flex-direction: column;">
+            <div class="doc-editor-toolbar">
+              <span style="font-size: 11px; font-weight: 600; color: var(--text-3); margin-right: 4px;">插入变量:</span>
+              <button type="button" class="btn btn-default btn-xs" onclick="insertDocVar('{{.APIBaseURL}}')">BaseURL 变量</button>
+              <button type="button" class="btn btn-default btn-xs" onclick="insertDocVar('{{.UserKey}}')">用户密钥变量</button>
+              <button type="button" class="btn btn-default btn-xs" onclick="insertDocSnippet('table')">+ 表格</button>
+              <button type="button" class="btn btn-default btn-xs" onclick="insertDocSnippet('code')">+ 代码块</button>
+              <button type="button" class="btn btn-default btn-xs" onclick="insertDocSnippet('alert')">+ 警告卡片</button>
+            </div>
+            <textarea id="doc-content-md" class="doc-editor-textarea" placeholder="在此编辑 Markdown 源码..." oninput="updateDocModalPreview()"></textarea>
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <div class="doc-editor-toolbar" style="justify-content: space-between;">
+              <span style="font-size: 11px; font-weight: 600; color: var(--text-3);">实时渲染预览 (Live Preview)</span>
+              <span class="badge" style="font-size: 10px; background: var(--surface); color: var(--text-2);">Markdown GFM</span>
+            </div>
+            <div id="doc-preview-pane" class="doc-preview-pane"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeModal('modal-doc-edit')">取消</button>
+        <button class="btn btn-primary" onclick="saveDocArticle()">保存文档</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide-out Drawer for AIGC Details -->
+  <div id="drawer-aigc" class="drawer-overlay" onclick="if(event.target===this)closeDrawer('drawer-aigc')">
+    <div class="drawer-panel">
+      <div class="drawer-header">
+        <div class="drawer-title-box">
+          <span class="drawer-title" id="drawer-aigc-title">AIGC 任务详情</span>
+          <span id="drawer-aigc-status-badge"></span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="closeDrawer('drawer-aigc')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="drawer-body" id="drawer-aigc-body">
+        加载中...
+      </div>
+      <div class="drawer-footer" id="drawer-aigc-footer">
+        <div id="drawer-aigc-actions"></div>
+        <button class="btn btn-default" onclick="closeDrawer('drawer-aigc')">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Mapping Rule Modal -->
+  <div id="modal-error-rule" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-error-rule')">
+    <div class="modal-dialog" style="max-width: 600px;">
+      <div class="modal-header">
+        <span id="modal-error-rule-title">新建错误映射规则</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-error-rule')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="rule-id">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-row">
+            <label class="form-label">供应商标识 (支持 * 通配)</label>
+            <input type="text" id="rule-provider" class="input-control font-mono" style="width: 100%;" placeholder="例如 volcengine*, qwen*, *" value="*">
+          </div>
+          <div class="form-row">
+            <label class="form-label">匹配类型</label>
+            <select id="rule-match-type" class="select-control" style="width: 100%;">
+              <option value="code_contains">错误码包含 (code_contains)</option>
+              <option value="code_exact">错误码精确 (code_exact)</option>
+              <option value="code_prefix">错误码前缀 (code_prefix)</option>
+              <option value="msg_contains">文本包含 (msg_contains)</option>
+              <option value="msg_regex">文本正则 (msg_regex)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">匹配特征串 / 表达式</label>
+          <input type="text" id="rule-match-pattern" class="input-control font-mono" style="width: 100%;" placeholder="例如 OutputVideoSensitiveContentDetected 或 (?i)rate limit">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-row">
+            <label class="form-label">平台标准错误码 (snake_case)</label>
+            <input type="text" id="rule-standard-code" class="input-control font-mono" style="width: 100%;" placeholder="例如 copyright_violation, sensitive_media_detected">
+          </div>
+          <div class="form-row">
+            <label class="form-label">响应 HTTP 状态码</label>
+            <input type="number" id="rule-http-status" class="input-control font-mono" style="width: 100%;" value="400" placeholder="400, 403, 429, 502 等">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-row">
+            <label class="form-label">错误大类 (Type)</label>
+            <select id="rule-standard-type" class="select-control" style="width: 100%;">
+              <option value="invalid_request_error">请求参数错误 (invalid_request_error)</option>
+              <option value="content_policy_error">安全合规策略 (content_policy_error)</option>
+              <option value="permission_error">权限与配额不足 (permission_error)</option>
+              <option value="authentication_error">身份鉴权失败 (authentication_error)</option>
+              <option value="rate_limit_error">请求限流拦截 (rate_limit_error)</option>
+              <option value="routing_error">路由与驱动异常 (routing_error)</option>
+              <option value="upstream_error">上游服务异常 (upstream_error)</option>
+              <option value="server_error">系统内部错误 (server_error)</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label">匹配优先级 (越小越先匹配)</label>
+            <input type="number" id="rule-priority" class="input-control font-mono" style="width: 100%;" value="50">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">用户友好中文提示文案 (对外显示)</label>
+          <input type="text" id="rule-user-message" class="input-control" style="width: 100%;" placeholder="例如: 生成内容可能涉及版权限制，请更换素材或提示词">
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">英文提示文案 (可选)</label>
+          <input type="text" id="rule-user-message-en" class="input-control" style="width: 100%;" placeholder="Optional english message">
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">规则状态</label>
+          <select id="rule-status" class="select-control" style="width: 100%;">
+            <option value="1">启用</option>
+            <option value="0">禁用</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">备注说明</label>
+          <input type="text" id="rule-description" class="input-control" style="width: 100%;" placeholder="例如: 针对火山 Seedance 版权拦截的专门转换">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeModal('modal-error-rule')">取消</button>
+        <button class="btn btn-primary" onclick="saveErrorRule()">保存并热生效</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rule Live Test Modal -->
+  <div id="modal-rule-test" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-rule-test')">
+    <div class="modal-dialog" style="max-width: 650px;">
+      <div class="modal-header">
+        <span>错误转换规则实时在线测试器</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-rule-test')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 12px; color: var(--text-2); margin-bottom: 12px;">输入上游原始报错响应与 Provider，即时验证匹配结果与转换效果：</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-row">
+            <label class="form-label">测试供应商 (Provider)</label>
+            <input type="text" id="test-provider" class="input-control font-mono" style="width: 100%;" value="volcengine-seedance" placeholder="如 volcengine-seedance, qwen-image">
+          </div>
+          <div class="form-row">
+            <label class="form-label">上游 HTTP 状态码</label>
+            <input type="number" id="test-status-code" class="input-control font-mono" style="width: 100%;" value="400">
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">上游原始响应报文 (JSON 或纯文本)</label>
+          <textarea id="test-raw-body" class="input-control font-mono" style="width: 100%; height: 110px; resize: vertical;" placeholder='例如: {"error":{"code":"OutputVideoSensitiveContentDetected.PolicyViolation","message":"copyright restrictions"}}'></textarea>
+        </div>
+        <div style="text-align: right; margin-bottom: 12px;">
+          <button class="btn btn-primary btn-sm" onclick="runRuleTest()">执行模拟转换测试</button>
+        </div>
+
+        <div id="test-result-box" style="display: none; padding: 12px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <div style="font-weight: 600; font-size: 13px; margin-bottom: 8px; color: var(--accent);">转换结果输出：</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+            <div>标准错误码: <span id="test-res-code" class="font-mono" style="font-weight: 600;">-</span></div>
+            <div>HTTP 状态码: <span id="test-res-status" class="font-mono" style="font-weight: 600;">-</span></div>
+            <div>错误大类: <span id="test-res-type" class="font-mono">-</span></div>
+            <div>上游原始码: <span id="test-res-upstream" class="font-mono">-</span></div>
+          </div>
+          <div style="margin-top: 8px; font-size: 12px;">
+            用户中文文案: <span id="test-res-msg" style="color: var(--text-1); font-weight: 500;">-</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeModal('modal-rule-test')">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unclassified Errors Triage Modal -->
+  <div id="modal-unclassified-errors" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-unclassified-errors')">
+    <div class="modal-dialog" style="max-width: 800px;">
+      <div class="modal-header">
+        <span>未分类/高频上游报错待办箱</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-unclassified-errors')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 12px; color: var(--text-2); margin-bottom: 12px;">
+          自动从历史失败记录中聚合未精细映射的上游错误，支持一键创建规则实现闭环维护：
+        </div>
+        <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 120px;">供应商</th>
+                <th style="width: 140px;">上游原始错误码</th>
+                <th>最近错误描述</th>
+                <th style="width: 70px;">频次</th>
+                <th style="width: 90px; text-align: right;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="unclassified-tbody">
+              <tr><td colspan="5" style="text-align: center; color: var(--text-3);">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="loadUnclassifiedErrors()">刷新列表</button>
+        <button class="btn btn-default" onclick="closeModal('modal-unclassified-errors')">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Adjust User Quota Modal with Live Calculation -->
+  <div id="modal-adjust-quota" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-adjust-quota')">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span>用户额度调账与手动充值</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-adjust-quota')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="adjust-user-id">
+        <div class="form-row">
+          <label class="form-label">目标用户</label>
+          <input type="text" id="adjust-username" class="input-control font-mono" style="width: 100%;" disabled>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">变动积分 (正数为增加/充值，负数为扣减)</label>
+          <input type="number" step="0.00000001" id="adjust-delta" class="input-control font-mono" style="width: 100%; font-size: 14px;" placeholder="例如 100 或 -50" oninput="updateQuotaPreview()">
+          <div class="presets-row">
+            <span class="preset-chip" onclick="setAdjustDelta(100)">+100</span>
+            <span class="preset-chip" onclick="setAdjustDelta(500)">+500</span>
+            <span class="preset-chip" onclick="setAdjustDelta(1000)">+1000</span>
+            <span class="preset-chip" onclick="setAdjustDelta(-50)">-50</span>
+            <span class="preset-chip" onclick="setAdjustDelta(-100)">-100</span>
+          </div>
+        </div>
+
+        <div class="calc-preview">
+          <div class="calc-step">
+            <span class="calc-step-label">当前可用</span>
+            <span class="calc-step-val" id="calc-current-val">0.00000000</span>
+          </div>
+          <span style="color: var(--text-3);">+</span>
+          <div class="calc-step">
+            <span class="calc-step-label">调账变动</span>
+            <span class="calc-step-val" id="calc-delta-val" style="color: var(--accent);">0.00000000</span>
+          </div>
+          <span style="color: var(--text-3);">=</span>
+          <div class="calc-step">
+            <span class="calc-step-label">调整后预估</span>
+            <span class="calc-step-val" id="calc-final-val" style="color: var(--success);">0.00000000</span>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 16px;">
+          <label class="form-label">调账备注原因 (写入审计流水)</label>
+          <input type="text" id="adjust-remark" class="input-control" style="width: 100%;" placeholder="例如: 管理员充值 / 体验金赠送 / 调账扣除">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeModal('modal-adjust-quota')">取消</button>
+        <button class="btn btn-primary" onclick="submitQuotaAdjustment()">确认调整入账</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Group Change Modal -->
+  <div id="modal-user-group" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-user-group')">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span>修改用户所属模型分组</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-user-group')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="user-group-user-id">
+        <div class="form-row">
+          <label class="form-label">用户名</label>
+          <input type="text" id="user-group-username" class="input-control font-mono" style="width: 100%;" readonly disabled>
+        </div>
+        <div class="form-row">
+          <label class="form-label">选择目标模型分组</label>
+          <select id="user-group-select" class="select-control" style="width: 100%;">
+            <option value="default">default (默认分组)</option>
+          </select>
+        </div>
+        <div style="font-size: 12px; color: var(--text-3); line-height: 1.5; margin-top: 8px;">
+          切换分组后，该用户名下的所有 API-Key 均会立即继承该分组的模型访问权限。
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeModal('modal-user-group')">取消</button>
+        <button class="btn btn-primary" onclick="submitChangeUserGroup()">确认切换</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model Group Modal -->
+  <div id="modal-model-group" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-model-group')">
+    <div class="modal-dialog" style="max-width: 560px;">
+      <div class="modal-header">
+        <span id="model-group-modal-title">模型分组配置</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-model-group')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="model-group-id">
+        <div class="form-row">
+          <label class="form-label">分组标识 (唯一英文，如 video, default, vip)</label>
+          <input type="text" id="model-group-name" class="input-control font-mono" style="width: 100%;" placeholder="例如 video">
+        </div>
+        <div class="form-row">
+          <label class="form-label">展示名称</label>
+          <input type="text" id="model-group-display-name" class="input-control" style="width: 100%;" placeholder="例如 视频生成专用组">
+        </div>
+        <div class="form-row">
+          <label class="form-label">允许模型规则列表 (JSON 数组格式，支持通配符 *)</label>
+          <textarea id="model-group-models" class="input-control font-mono" style="width: 100%; height: 110px;" placeholder='["volcengine/doubao-seedance-*", "sora-2", "grok-imagine-video*"]'></textarea>
+          <div style="font-size: 11px; color: var(--text-3); margin-top: 4px;">
+            示例: <code>["*"]</code> (全部开放), <code>["gpt-4o*", "claude-3-5*"]</code>, <code>["volcengine/*"]</code>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">状态</label>
+          <select id="model-group-status" class="select-control" style="width: 100%;">
+            <option value="1">启用</option>
+            <option value="0">禁用</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeModal('modal-model-group')">取消</button>
+        <button class="btn btn-primary" onclick="submitModelGroupForm()">保存分组</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Package Modal -->
+  <div id="modal-package" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-package')">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span id="package-modal-title">充值套餐配置</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-package')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="package-id">
+        <div class="form-row">
+          <label class="form-label">套餐编码 (唯一标识)</label>
+          <input type="text" id="package-code" class="input-control font-mono" style="width: 100%;" placeholder="例如 pkg_100">
+        </div>
+        <div class="form-row">
+          <label class="form-label">展示名称</label>
+          <input type="text" id="package-name" class="input-control" style="width: 100%;" placeholder="例如 100元套餐">
+        </div>
+        <div class="form-row">
+          <label class="form-label">支付渠道</label>
+          <select id="package-channel" class="select-control" style="width: 100%;">
+            <option value="wechat">微信支付 (wechat)</option>
+            <option value="alipay">支付宝 (alipay)</option>
+          </select>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-row">
+            <label class="form-label">支付金额 (元)</label>
+            <input type="number" step="0.01" id="package-amount" class="input-control font-mono" style="width: 100%;" placeholder="100.00">
+          </div>
+          <div class="form-row">
+            <label class="form-label">到账积分</label>
+            <input type="number" step="0.00000001" id="package-points" class="input-control font-mono" style="width: 100%;" placeholder="100.00000000">
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-row">
+            <label class="form-label">展示排序</label>
+            <input type="number" id="package-sort" class="input-control font-mono" style="width: 100%;" value="10">
+          </div>
+          <div class="form-row">
+            <label class="form-label">状态</label>
+            <select id="package-status" class="select-control" style="width: 100%;">
+              <option value="1">启用</option>
+              <option value="0">停用</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeModal('modal-package')">取消</button>
+        <button class="btn btn-primary" onclick="submitPackageForm()">保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Inspector Modal -->
+  <div id="modal-error" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-error')">
+    <div class="modal-dialog" style="max-width: 720px;">
+      <div class="modal-header">
+        <span>调用失败响应体详情 (Error Inspector)</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-error')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 14px;">
+        <div id="error-inspector-content"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeModal('modal-error')">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Setting Modal -->
+  <div id="modal-key-setting" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-key-setting')">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span>CPA 管理密钥设置</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-key-setting')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 12px; color: var(--text-2); margin-bottom: 12px; line-height: 1.6;">
+          CPA 管理端 API (<code>/v0/management/*</code>) 受鉴权保护。请输入 CPA <code>config.yaml</code> 中的 <code>remote-management.secret-key</code>。
+        </p>
+        <div class="form-row">
+          <label class="form-label">管理密钥 (Management Key)</label>
+          <input type="password" id="input-mgmt-key" class="input-control font-mono" style="width: 100%; font-size: 13px;" placeholder="输入管理密钥...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeModal('modal-key-setting')">取消</button>
+        <button class="btn btn-primary" onclick="saveManagementKeyModal()">保存并重试</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Stack -->
+  <div class="toast-stack" id="toast-stack"></div>
+
+  <script>
+    let currentTab = 'dashboard';
+    let usersPage = 1, ordersPage = 1, ledgerPage = 1, usagePage = 1, aigcPage = 1;
+    const pageSize = 15;
+    let currentUserQuota = 0;
+
+    // Chinese Label Mappings
+    const RoleMap = { admin: '管理员', user: '普通用户' };
+    const ChannelMap = { wechat: '微信支付', alipay: '支付宝' };
+    const OrderStatusMap = { paid: '已支付', pending: '待支付', failed: '支付失败', closed: '已关闭' };
+    const LedgerTypeMap = {
+      recharge: '充值入账',
+      manual_adjust: '人工调账',
+      token_deduct: 'Token扣费',
+      call_deduct: '按次扣费',
+      aigc_freeze: 'AIGC冻结',
+      aigc_settle: 'AIGC结算',
+      aigc_refund: 'AIGC退款'
+    };
+    const AIGCKindMap = { video: '视频生成', image: '图片生成', audio: '音频生成' };
+    const AIGCStatusMap = {
+      running: '生成中',
+      pending: '排队中',
+      succeeded: '已完成',
+      failed: '生成失败',
+      canceled: '已取消'
+    };
+    const AIGCStageMap = {
+      created: '任务已创建',
+      preparing_input: '准备素材',
+      input_ready: '素材就绪',
+      selecting_provider: '匹配渠道',
+      submitting: '提交上游',
+      provider_running: '渲染生成中',
+      polling: '同步进度',
+      preparing_output: '处理产物',
+      completed: '渲染已完成',
+      failed: '生成失败',
+      canceled: '已取消',
+      queued: '排队等待中',
+      queue: '排队等待中',
+      pending: '排队等待中',
+      running: '渲染生成中',
+      processing: '处理中',
+      generating: '渲染生成中',
+      uploading: '转存产物中',
+      upload_tos: '转存存储桶',
+      downloading: '拉取产物中',
+      saving: '保存记录中'
+    };
+
+    function formatAIGCStage(stage, progress) {
+      if (!stage && (progress === undefined || progress === null)) return '等待中';
+      const stageLower = String(stage || '').toLowerCase().trim();
+      const stageName = AIGCStageMap[stageLower] || stage || '执行中';
+      const hasPct = typeof progress === 'number' && progress >= 0;
+      if (hasPct) {
+        return `${stageName} · ${progress}%`;
+      }
+      return stageName;
+    }
+
+    function toast(msg, type = 'success') {
+      const el = document.createElement('div');
+      el.className = `toast-msg ${type}`;
+      el.innerHTML = `<span>${escapeHtml(msg)}</span>`;
+      document.getElementById('toast-stack').appendChild(el);
+      setTimeout(() => el.remove(), 3200);
+    }
+
+    function getManagementKey() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlKey = urlParams.get('key') || urlParams.get('management_key') || urlParams.get('token');
+      if (urlKey) {
+        localStorage.setItem('portal_admin_mgmt_key', urlKey.trim());
+        return urlKey.trim();
+      }
+      return localStorage.getItem('portal_admin_mgmt_key') ||
+             localStorage.getItem('cpa_management_key') ||
+             localStorage.getItem('managementKey') || '';
+    }
+
+    function openKeyModal() {
+      document.getElementById('input-mgmt-key').value = getManagementKey();
+      openModal('modal-key-setting');
+    }
+
+    function saveManagementKeyModal() {
+      const key = document.getElementById('input-mgmt-key').value.trim();
+      if (key) {
+        localStorage.setItem('portal_admin_mgmt_key', key);
+        toast('管理密钥已保存');
+      } else {
+        localStorage.removeItem('portal_admin_mgmt_key');
+        toast('管理密钥已清除', 'error');
+      }
+      closeModal('modal-key-setting');
+      refreshCurrentTab();
+    }
+
+    async function api(path, options = {}) {
+      try {
+        const key = getManagementKey();
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        };
+        if (key) {
+          headers['Authorization'] = 'Bearer ' + key;
+          headers['X-Management-Key'] = key;
+        }
+
+        const res = await fetch(path, { ...options, headers });
+        const text = await res.text();
+        let data = {};
+        if (text) {
+          try {
+            data = JSON.parse(text);
+          } catch {
+            data = { message: text };
+          }
+        }
+
+        if (res.status === 401 || res.status === 403) {
+          const errMsg = data.error || data.message || '';
+          if (errMsg.includes('management key') || errMsg.includes('missing') || errMsg.includes('invalid') || res.status === 401) {
+            openKeyModal();
+            throw new Error('未提供有效管理密钥，请在弹窗中配置');
+          }
+        }
+
+        if (!res.ok) {
+          throw new Error(data.message || data.error || `请求失败 (HTTP ${res.status})`);
+        }
+        return data;
+      } catch (err) {
+        toast(err.message, 'error');
+        throw err;
+      }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.nav-item').forEach(t => {
+        t.classList.toggle('active', t.getAttribute('onclick').includes(tab));
+      });
+      document.querySelectorAll('.tab-view').forEach(p => p.classList.remove('active'));
+      const activeView = document.getElementById(`view-${tab}`);
+      if (activeView) activeView.classList.add('active');
+      refreshCurrentTab();
+    }
+
+    function refreshCurrentTab() {
+      if (currentTab === 'dashboard') loadDashboard();
+      else if (currentTab === 'users') loadUsers(usersPage);
+      else if (currentTab === 'groups') loadModelGroups();
+      else if (currentTab === 'recharge') { loadOrders(ordersPage); loadLedgers(ledgerPage); }
+      else if (currentTab === 'packages') loadPackages();
+      else if (currentTab === 'usage') loadUsage(usagePage);
+      else if (currentTab === 'aigc') loadAIGC(aigcPage);
+      else if (currentTab === 'error-rules') loadErrorRules(errorRulesPage);
+      else if (currentTab === 'docs') loadDocs();
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function openDrawer(id) { document.getElementById(id).classList.add('open'); }
+    function closeDrawer(id) { document.getElementById(id).classList.remove('open'); }
+
+    // 1. Dashboard
+    async function loadDashboard() {
+      try {
+        const data = await api('/v0/management/portal/summary');
+        document.getElementById('stat-total-users').innerText = Number(data.total_users || 0).toLocaleString();
+        document.getElementById('stat-active-users').innerText = `正常账户: ${Number(data.active_users || 0).toLocaleString()}`;
+        document.getElementById('stat-total-recharge').innerText = `¥${Number(data.total_recharge_cny || 0).toLocaleString('zh-CN', {minimumFractionDigits: 2})}`;
+        document.getElementById('stat-total-used').innerText = Number(data.total_used_quota || 0).toLocaleString('zh-CN', {minimumFractionDigits: 8, maximumFractionDigits: 8});
+        document.getElementById('stat-total-reqs').innerText = Number(data.total_requests || 0).toLocaleString();
+        document.getElementById('stat-today-reqs').innerText = `今日调用: +${Number(data.today_requests || 0).toLocaleString()}`;
+        document.getElementById('stat-total-aigc').innerText = Number(data.total_aigc_tasks || 0).toLocaleString();
+        document.getElementById('stat-running-aigc').innerText = `当前进行中: ${data.running_aigc_tasks || 0}`;
+
+        const usersTbody = document.getElementById('top-users-tbody');
+        if (data.top_users && data.top_users.length) {
+          usersTbody.innerHTML = data.top_users.map(u => `
+            <tr>
+              <td class="td-primary font-mono">${escapeHtml(u.username)}</td>
+              <td style="text-align: right;" class="tabular-nums font-mono">${Number(u.quota).toFixed(8)}</td>
+              <td style="text-align: right; color: var(--accent);" class="tabular-nums font-mono">${Number(u.used_quota).toFixed(8)}</td>
+            </tr>
+          `).join('');
+        } else {
+          usersTbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-3);">暂无数据</td></tr>';
+        }
+
+        const modelsTbody = document.getElementById('top-models-tbody');
+        if (data.top_models && data.top_models.length) {
+          modelsTbody.innerHTML = data.top_models.map(m => `
+            <tr>
+              <td class="td-primary font-mono">${escapeHtml(m.model)}</td>
+              <td style="text-align: right;" class="tabular-nums font-mono">${Number(m.request_count).toLocaleString()}</td>
+              <td style="text-align: right;" class="tabular-nums font-mono">${Number(m.total_tokens).toLocaleString()}</td>
+            </tr>
+          `).join('');
+        } else {
+          modelsTbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-3);">暂无数据</td></tr>';
+        }
+      } catch (err) {}
+    }
+
+    // 2. Users
+    let cachedUsers = [];
+    async function loadUsers(page = 1) {
+      usersPage = page;
+      const search = document.getElementById('users-search').value;
+      const status = document.getElementById('users-status-select').value;
+      const tbody = document.getElementById('users-tbody');
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-3);">加载中...</td></tr>';
+      try {
+        const query = new URLSearchParams({ page, limit: pageSize });
+        if (search) query.set('search', search);
+        if (status) query.set('status', status);
+        const data = await api(`/v0/management/portal/users?${query.toString()}`);
+        cachedUsers = data.items || [];
+        document.getElementById('users-total-badge').innerText = data.total;
+        document.getElementById('users-page-info').innerText = `共 ${data.total} 个用户 · 第 ${page} 页`;
+        document.getElementById('users-prev-btn').disabled = page <= 1;
+        document.getElementById('users-next-btn').disabled = page * pageSize >= data.total;
+
+        if (data.items && data.items.length) {
+          tbody.innerHTML = data.items.map(u => `
+            <tr>
+              <td class="font-mono text-muted">${u.id}</td>
+              <td class="td-primary font-mono">${escapeHtml(u.username)}</td>
+              <td><span class="copy-chip">${RoleMap[u.role] || u.role}</span></td>
+              <td><span class="copy-chip" style="cursor: pointer; color: var(--accent);" onclick='openChangeUserGroupModal(${u.id}, "${escapeHtml(u.username)}", "${escapeHtml(u.group_name || "default")}")' title="点击修改模型分组">${escapeHtml(u.group_name || 'default')}</span></td>
+              <td style="text-align: right; color: var(--accent); font-weight: 600;" class="tabular-nums font-mono">${Number(u.quota).toFixed(8)}</td>
+              <td style="text-align: right;" class="tabular-nums font-mono">${Number(u.frozen_quota).toFixed(8)}</td>
+              <td style="text-align: right;" class="tabular-nums font-mono">${Number(u.used_quota).toFixed(8)}</td>
+              <td>
+                <span class="status-badge ${u.status === 1 ? 'status-active' : 'status-danger'}">
+                  <span class="status-dot"></span>
+                  ${u.status === 1 ? '正常' : '已禁用'}
+                </span>
+              </td>
+              <td class="tabular-nums">${formatTime(u.created_at)}</td>
+              <td style="text-align: right;">
+                <div style="display: inline-flex; gap: 4px;">
+                  <button class="btn btn-default btn-sm" onclick="openAdjustQuotaModal(${u.id})">调账</button>
+                  <button class="btn btn-default btn-sm" onclick='openChangeUserGroupModal(${u.id}, "${escapeHtml(u.username)}", "${escapeHtml(u.group_name || "default")}")'>分组</button>
+                  <button class="btn btn-ghost btn-sm" onclick="toggleUserStatus(${u.id}, ${u.status === 1 ? 0 : 1})">
+                    ${u.status === 1 ? '禁用' : '解禁'}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--text-3);">未找到符合条件的用户</td></tr>';
+        }
+      } catch (err) {}
+    }
+    function prevUsersPage() { if (usersPage > 1) loadUsers(usersPage - 1); }
+    function nextUsersPage() { loadUsers(usersPage + 1); }
+
+    function openAdjustQuotaModal(userOrId) {
+      let user = userOrId;
+      if (typeof userOrId === 'number' || (typeof userOrId === 'string' && /^\d+$/.test(userOrId))) {
+        user = (cachedUsers || []).find(x => x.id == userOrId) || { id: userOrId, username: '', quota: 0 };
+      }
+      if (!user) return;
+      document.getElementById('adjust-user-id').value = user.id;
+      document.getElementById('adjust-username').value = user.username || '';
+      currentUserQuota = Number(user.quota) || 0;
+      document.getElementById('calc-current-val').innerText = currentUserQuota.toFixed(8);
+      document.getElementById('adjust-delta').value = '';
+      document.getElementById('adjust-remark').value = '';
+      updateQuotaPreview();
+      openModal('modal-adjust-quota');
+    }
+
+    function setAdjustDelta(delta) {
+      document.getElementById('adjust-delta').value = delta;
+      updateQuotaPreview();
+    }
+
+    function updateQuotaPreview() {
+      const deltaStr = document.getElementById('adjust-delta').value;
+      const delta = parseFloat(deltaStr) || 0;
+      const finalVal = currentUserQuota + delta;
+      document.getElementById('calc-delta-val').innerText = (delta >= 0 ? '+' : '') + delta.toFixed(8);
+      document.getElementById('calc-final-val').innerText = finalVal.toFixed(8);
+      document.getElementById('calc-final-val').style.color = finalVal < 0 ? 'var(--danger)' : 'var(--success)';
+    }
+
+    async function submitQuotaAdjustment() {
+      const userID = document.getElementById('adjust-user-id').value;
+      const delta = document.getElementById('adjust-delta').value;
+      const remark = document.getElementById('adjust-remark').value;
+      if (!delta) return toast('请输入变动金额', 'error');
+
+      try {
+        await api('/v0/management/portal/users/adjust-quota', {
+          method: 'POST',
+          body: JSON.stringify({ user_id: parseInt(userID, 10), delta, remark })
+        });
+        toast('用户额度调整完成，已写入不可变流水');
+        closeModal('modal-adjust-quota');
+        loadUsers(usersPage);
+      } catch (err) {}
+    }
+
+    async function toggleUserStatus(userID, newStatus) {
+      if (!confirm(`确认要${newStatus === 1 ? '启用' : '禁用'}该用户吗？`)) return;
+      try {
+        await api('/v0/management/portal/users/status', {
+          method: 'POST',
+          body: JSON.stringify({ user_id: parseInt(userID, 10), status: newStatus })
+        });
+        toast('用户状态已更新');
+        loadUsers(usersPage);
+      } catch (err) {}
+    }
+
+    let cachedModelGroups = [];
+
+    // 2.1 Model Groups
+    async function loadModelGroups() {
+      const tbody = document.getElementById('groups-tbody');
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-3);">加载中...</td></tr>';
+      try {
+        const data = await api('/v0/management/portal/model-groups');
+        cachedModelGroups = data.items || [];
+        document.getElementById('groups-total-badge').innerText = cachedModelGroups.length;
+
+        if (cachedModelGroups.length) {
+          tbody.innerHTML = cachedModelGroups.map(g => {
+            let modelsList = [];
+            if (Array.isArray(g.models)) {
+              modelsList = g.models;
+            } else if (typeof g.models === 'string') {
+              try {
+                modelsList = JSON.parse(decodeHtml(g.models));
+              } catch (e) {
+                modelsList = [g.models];
+              }
+            }
+            if (!Array.isArray(modelsList)) modelsList = [modelsList];
+            const badges = modelsList.map(m => `<span class="copy-chip font-mono" style="margin: 2px;">${escapeHtml(m)}</span>`).join('');
+            const isDefault = (g.name || '').toLowerCase() === 'default';
+
+            return `
+              <tr>
+                <td class="font-mono text-muted">${g.id}</td>
+                <td class="td-primary font-mono" style="font-weight: 600;">${escapeHtml(g.name)} ${isDefault ? '<span style="font-size: 10px; color: var(--accent); font-weight: normal;">(系统默认)</span>' : ''}</td>
+                <td>${escapeHtml(g.display_name)}</td>
+                <td style="max-width: 320px; word-break: break-all;">${badges}</td>
+                <td>
+                  <span class="status-badge ${g.status === 1 ? 'status-active' : 'status-danger'}">
+                    <span class="status-dot"></span>
+                    ${g.status === 1 ? '启用' : '禁用'}
+                  </span>
+                </td>
+                <td class="tabular-nums">${formatTime(g.updated_at || g.created_at)}</td>
+                <td style="text-align: right;">
+                  <div style="display: inline-flex; gap: 4px;">
+                    <button class="btn btn-default btn-sm" onclick="openModelGroupModal(${g.id})">编辑</button>
+                    ${!isDefault ? `<button class="btn btn-ghost btn-sm" onclick="deleteModelGroup(${g.id}, '${escapeHtml(g.name)}')">删除</button>` : ''}
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-3);">暂无模型分组，点击右上角新建</td></tr>';
+        }
+      } catch (err) {}
+    }
+
+    function openModelGroupModal(groupOrId = null) {
+      let group = null;
+      if (typeof groupOrId === 'number' || (typeof groupOrId === 'string' && /^\d+$/.test(groupOrId))) {
+        group = cachedModelGroups.find(g => g.id == groupOrId);
+      } else if (groupOrId && typeof groupOrId === 'object') {
+        group = groupOrId;
+      }
+
+      if (group) {
+        document.getElementById('model-group-modal-title').innerText = '编辑模型分组';
+        document.getElementById('model-group-id').value = group.id;
+        document.getElementById('model-group-name').value = group.name;
+        document.getElementById('model-group-name').disabled = true;
+        document.getElementById('model-group-display-name').value = group.display_name || '';
+        let formattedModels = '[\n  "*"\n]';
+        if (Array.isArray(group.models)) {
+          formattedModels = JSON.stringify(group.models, null, 2);
+        } else if (typeof group.models === 'string') {
+          try {
+            formattedModels = JSON.stringify(JSON.parse(decodeHtml(group.models)), null, 2);
+          } catch(e) {
+            formattedModels = group.models;
+          }
+        }
+        document.getElementById('model-group-models').value = formattedModels;
+        document.getElementById('model-group-status').value = group.status;
+      } else {
+        document.getElementById('model-group-modal-title').innerText = '新建模型分组';
+        document.getElementById('model-group-id').value = '';
+        document.getElementById('model-group-name').value = '';
+        document.getElementById('model-group-name').disabled = false;
+        document.getElementById('model-group-display-name').value = '';
+        document.getElementById('model-group-models').value = '[\n  "*"\n]';
+        document.getElementById('model-group-status').value = '1';
+      }
+      openModal('modal-model-group');
+    }
+
+    async function submitModelGroupForm() {
+      const id = document.getElementById('model-group-id').value;
+      const name = document.getElementById('model-group-name').value.trim();
+      const displayName = document.getElementById('model-group-display-name').value.trim();
+      let modelsRaw = document.getElementById('model-group-models').value.trim();
+      const status = parseInt(document.getElementById('model-group-status').value, 10);
+
+      if (!name) return toast('请输入分组标识', 'error');
+      if (!modelsRaw) modelsRaw = '["*"]';
+      let parsedModels = ['*'];
+      try {
+        parsedModels = JSON.parse(modelsRaw);
+        if (!Array.isArray(parsedModels)) return toast('允许模型规则必须是 JSON 字符串数组格式', 'error');
+      } catch(e) {
+        return toast('模型规则 JSON 格式不合法，例如: ["gpt-4o*", "sora-2"]', 'error');
+      }
+
+      try {
+        if (id) {
+          await api(`/v0/management/portal/model-groups/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ display_name: displayName, models: parsedModels, status })
+          });
+          toast('模型分组更新成功');
+        } else {
+          await api('/v0/management/portal/model-groups', {
+            method: 'POST',
+            body: JSON.stringify({ name, display_name: displayName, models: parsedModels })
+          });
+          toast('模型分组创建成功');
+        }
+        closeModal('modal-model-group');
+        loadModelGroups();
+      } catch (err) {}
+    }
+
+    async function deleteModelGroup(id, name) {
+      if (!confirm(`确认要删除模型分组 [${name}] 吗？删除后该组用户将自动回退到 default 分组。`)) return;
+      try {
+        await api(`/v0/management/portal/model-groups/${id}`, { method: 'DELETE' });
+        toast('模型分组已删除');
+        loadModelGroups();
+      } catch(err) {}
+    }
+
+    async function openChangeUserGroupModal(userID, username, currentGroup) {
+      document.getElementById('user-group-user-id').value = userID;
+      document.getElementById('user-group-username').value = username;
+
+      // Ensure model groups loaded for select
+      if (cachedModelGroups.length === 0) {
+        try {
+          const data = await api('/v0/management/portal/model-groups');
+          cachedModelGroups = data.items || [];
+        } catch(e){}
+      }
+
+      const selectEl = document.getElementById('user-group-select');
+      if (cachedModelGroups.length > 0) {
+        selectEl.innerHTML = cachedModelGroups.map(g => `
+          <option value="${escapeHtml(g.name)}" ${g.name === currentGroup ? 'selected' : ''}>
+            ${escapeHtml(g.name)} (${escapeHtml(g.display_name)})
+          </option>
+        `).join('');
+      } else {
+        selectEl.innerHTML = `<option value="${escapeHtml(currentGroup)}">${escapeHtml(currentGroup)}</option>`;
+      }
+      openModal('modal-user-group');
+    }
+
+    async function submitChangeUserGroup() {
+      const userID = document.getElementById('user-group-user-id').value;
+      const groupName = document.getElementById('user-group-select').value;
+      try {
+        await api('/v0/management/portal/users/group', {
+          method: 'POST',
+          body: JSON.stringify({ user_id: parseInt(userID, 10), group_name: groupName })
+        });
+        toast('用户所属模型分组已更新');
+        closeModal('modal-user-group');
+        loadUsers(usersPage);
+      } catch(err) {}
+    }
+
+    // Date Helper Functions
+    function formatDateYMD(d) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function applyDatePreset(prefix, preset) {
+      const fromEl = document.getElementById(`${prefix}-date-from`);
+      const toEl = document.getElementById(`${prefix}-date-to`);
+      if (!fromEl || !toEl) return;
+
+      const now = new Date();
+      let fromStr = '';
+      let toStr = '';
+
+      if (preset === 'today') {
+        fromStr = formatDateYMD(now);
+        toStr = formatDateYMD(now);
+      } else if (preset === 'yesterday') {
+        const y = new Date(now.getTime() - 24 * 3600 * 1000);
+        fromStr = formatDateYMD(y);
+        toStr = formatDateYMD(y);
+      } else if (preset === '7d') {
+        const past = new Date(now.getTime() - 6 * 24 * 3600 * 1000);
+        fromStr = formatDateYMD(past);
+        toStr = formatDateYMD(now);
+      } else if (preset === '30d') {
+        const past = new Date(now.getTime() - 29 * 24 * 3600 * 1000);
+        fromStr = formatDateYMD(past);
+        toStr = formatDateYMD(now);
+      } else if (preset === 'this_month') {
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        fromStr = formatDateYMD(firstDay);
+        toStr = formatDateYMD(now);
+      } else if (preset === 'clear') {
+        fromStr = '';
+        toStr = '';
+      }
+
+      fromEl.value = fromStr;
+      toEl.value = toStr;
+
+      if (prefix === 'orders') loadOrders(1);
+      else if (prefix === 'ledger') loadLedgers(1);
+      else if (prefix === 'usage') loadUsage(1);
+      else if (prefix === 'aigc') loadAIGC(1);
+    }
+
+    function resetOrdersFilter() {
+      document.getElementById('orders-search').value = '';
+      document.getElementById('orders-channel-select').value = '';
+      document.getElementById('orders-status-select').value = '';
+      const fromEl = document.getElementById('orders-date-from');
+      const toEl = document.getElementById('orders-date-to');
+      const presetEl = document.getElementById('orders-date-preset');
+      if (fromEl) fromEl.value = '';
+      if (toEl) toEl.value = '';
+      if (presetEl) presetEl.value = '';
+      loadOrders(1);
+    }
+
+    function resetLedgerFilter() {
+      document.getElementById('ledger-search').value = '';
+      document.getElementById('ledger-type-select').value = '';
+      const fromEl = document.getElementById('ledger-date-from');
+      const toEl = document.getElementById('ledger-date-to');
+      const presetEl = document.getElementById('ledger-date-preset');
+      if (fromEl) fromEl.value = '';
+      if (toEl) toEl.value = '';
+      if (presetEl) presetEl.value = '';
+      loadLedgers(1);
+    }
+
+    function resetUsageFilter() {
+      document.getElementById('usage-search').value = '';
+      document.getElementById('usage-model').value = '';
+      document.getElementById('usage-outcome').value = '';
+      const fromEl = document.getElementById('usage-date-from');
+      const toEl = document.getElementById('usage-date-to');
+      const presetEl = document.getElementById('usage-date-preset');
+      if (fromEl) fromEl.value = '';
+      if (toEl) toEl.value = '';
+      if (presetEl) presetEl.value = '';
+      loadUsage(1);
+    }
+
+    function resetAIGCFilter() {
+      document.getElementById('aigc-search').value = '';
+      document.getElementById('aigc-kind').value = '';
+      document.getElementById('aigc-status').value = '';
+      const fromEl = document.getElementById('aigc-date-from');
+      const toEl = document.getElementById('aigc-date-to');
+      const presetEl = document.getElementById('aigc-date-preset');
+      if (fromEl) fromEl.value = '';
+      if (toEl) toEl.value = '';
+      if (presetEl) presetEl.value = '';
+      loadAIGC(1);
+    }
+
+    // 3. Recharge Orders & Ledgers
+    async function loadOrders(page = 1) {
+      ordersPage = page;
+      const search = document.getElementById('orders-search').value;
+      const channel = document.getElementById('orders-channel-select').value;
+      const status = document.getElementById('orders-status-select').value;
+      const dateFrom = document.getElementById('orders-date-from') ? document.getElementById('orders-date-from').value : '';
+      const dateTo = document.getElementById('orders-date-to') ? document.getElementById('orders-date-to').value : '';
+      const tbody = document.getElementById('orders-tbody');
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-3);">加载中...</td></tr>';
+      try {
+        const query = new URLSearchParams({ page, limit: pageSize });
+        if (search) query.set('search', search);
+        if (channel) query.set('channel', channel);
+        if (status) query.set('status', status);
+        if (dateFrom) query.set('date_from', dateFrom);
+        if (dateTo) query.set('date_to', dateTo);
+        const data = await api(`/v0/management/portal/recharge-orders?${query.toString()}`);
+        document.getElementById('orders-total-badge').innerText = data.total;
+        document.getElementById('orders-page-info').innerText = `共 ${data.total} 笔订单 · 第 ${page} 页`;
+        document.getElementById('orders-prev-btn').disabled = page <= 1;
+        document.getElementById('orders-next-btn').disabled = page * pageSize >= data.total;
+
+        if (data.items && data.items.length) {
+          tbody.innerHTML = data.items.map(o => `
+            <tr>
+              <td><span class="copy-chip" onclick="copyText('${o.order_no}')">${escapeHtml(o.order_no)}</span></td>
+              <td class="td-primary font-mono">${escapeHtml(o.username || (o.user_id ? '用户 #' + o.user_id : '系统'))}</td>
+              <td style="text-align: right;" class="tabular-nums font-mono">¥${Number(o.amount_cny).toFixed(2)}</td>
+              <td style="text-align: right; color: var(--accent);" class="tabular-nums font-mono">+${Number(o.points).toFixed(8)}</td>
+              <td><span class="copy-chip">${ChannelMap[o.channel] || o.channel}</span></td>
+              <td><span class="font-mono text-muted" style="font-size:11px;">${escapeHtml(o.trade_no || '-')}</span></td>
+              <td>
+                <span class="status-badge ${o.status === 'paid' ? 'status-active' : o.status === 'pending' ? 'status-pending' : 'status-danger'}">
+                  <span class="status-dot"></span>
+                  ${OrderStatusMap[o.status] || o.status}
+                </span>
+              </td>
+              <td class="tabular-nums">${formatTime(o.paid_at || o.created_at)}</td>
+              <td style="text-align: right;">
+                ${o.status === 'pending' ? `<button class="btn btn-default btn-sm" onclick="completeOrderManual('${o.order_no}')">补单入账</button>` : '-'}
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-3);">暂无充值订单</td></tr>';
+        }
+      } catch (err) {}
+    }
+    function prevOrdersPage() { if (ordersPage > 1) loadOrders(ordersPage - 1); }
+    function nextOrdersPage() { loadOrders(ordersPage + 1); }
+
+    async function completeOrderManual(orderNo) {
+      if (!confirm(`确认要将订单 [${orderNo}] 手动补单入账吗？`)) return;
+      try {
+        await api('/v0/management/portal/recharge-orders/complete', {
+          method: 'POST',
+          body: JSON.stringify({ order_no: orderNo, remark: '管理员手动补单' })
+        });
+        toast('补单成功，用户余额与流水已更新');
+        loadOrders(ordersPage);
+      } catch (err) {}
+    }
+
+    async function loadLedgers(page = 1) {
+      ledgerPage = page;
+      const search = document.getElementById('ledger-search').value;
+      const type = document.getElementById('ledger-type-select').value;
+      const dateFrom = document.getElementById('ledger-date-from') ? document.getElementById('ledger-date-from').value : '';
+      const dateTo = document.getElementById('ledger-date-to') ? document.getElementById('ledger-date-to').value : '';
+      const tbody = document.getElementById('ledger-tbody');
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-3);">加载中...</td></tr>';
+      try {
+        const query = new URLSearchParams({ page, limit: pageSize });
+        if (search) query.set('search', search);
+        if (type) query.set('type', type);
+        if (dateFrom) query.set('date_from', dateFrom);
+        if (dateTo) query.set('date_to', dateTo);
+        const data = await api(`/v0/management/portal/ledger?${query.toString()}`);
+        document.getElementById('ledger-total-badge').innerText = data.total;
+        document.getElementById('ledger-page-info').innerText = `共 ${data.total} 条流水 · 第 ${page} 页`;
+        document.getElementById('ledger-prev-btn').disabled = page <= 1;
+        document.getElementById('ledger-next-btn').disabled = page * pageSize >= data.total;
+
+        if (data.items && data.items.length) {
+          tbody.innerHTML = data.items.map(l => {
+            const isPos = Number(l.delta_quota) > 0;
+            return `
+              <tr>
+                <td class="font-mono text-muted">${l.id}</td>
+                <td class="td-primary font-mono">${escapeHtml(l.username || (l.user_id ? '用户 #' + l.user_id : '系统'))}</td>
+                <td><span class="copy-chip">${LedgerTypeMap[l.type] || l.type}</span></td>
+                <td style="text-align: right; color: ${isPos ? 'var(--success)' : 'var(--danger)'};" class="tabular-nums font-mono">
+                  ${isPos ? '+' : ''}${Number(l.delta_quota).toFixed(8)}
+                </td>
+                <td style="text-align: right;" class="tabular-nums font-mono">${Number(l.delta_frozen).toFixed(8)}</td>
+                <td style="text-align: right; font-weight: 600;" class="tabular-nums font-mono">${Number(l.balance_after).toFixed(8)}</td>
+                <td><span style="font-size: 11px; color: var(--text-2);">${escapeHtml(l.remark || l.ref_id)}</span></td>
+                <td class="tabular-nums">${formatTime(l.created_at)}</td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-3);">暂无流水记录</td></tr>';
+        }
+      } catch (err) {}
+    }
+    function prevLedgerPage() { if (ledgerPage > 1) loadLedgers(ledgerPage - 1); }
+    function nextLedgerPage() { loadLedgers(ledgerPage + 1); }
+
+    // 4. Packages
+    let cachedPackages = [];
+    async function loadPackages() {
+      const tbody = document.getElementById('packages-tbody');
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-3);">加载中...</td></tr>';
+      try {
+        const data = await api('/v0/management/portal/packages');
+        cachedPackages = data.items || [];
+        if (cachedPackages.length) {
+          tbody.innerHTML = cachedPackages.map(p => `
+            <tr>
+              <td class="font-mono text-muted">${p.id}</td>
+              <td class="font-mono td-primary">${escapeHtml(p.code)}</td>
+              <td>${escapeHtml(p.name)}</td>
+              <td><span class="copy-chip">${ChannelMap[p.channel] || p.channel}</span></td>
+              <td style="text-align: right;" class="tabular-nums font-mono">¥${Number(p.amount_cny).toFixed(2)}</td>
+              <td style="text-align: right; color: var(--accent);" class="tabular-nums font-mono">${Number(p.points).toFixed(8)}</td>
+              <td class="font-mono">${p.sort_order}</td>
+              <td>
+                <span class="status-badge ${p.status === 1 ? 'status-active' : 'status-neutral'}">
+                  <span class="status-dot"></span>
+                  ${p.status === 1 ? '启用' : '停用'}
+                </span>
+              </td>
+              <td style="text-align: right;">
+                <div style="display: inline-flex; gap: 4px;">
+                  <button class="btn btn-default btn-sm" onclick="editPackage(${p.id})">编辑</button>
+                  <button class="btn btn-danger btn-sm" onclick="deletePackage(${p.id})">删除</button>
+                </div>
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-3);">暂无套餐配置</td></tr>';
+        }
+      } catch (err) {}
+    }
+
+    function openPackageModal() {
+      document.getElementById('package-modal-title').innerText = '新建充值套餐';
+      document.getElementById('package-id').value = '';
+      document.getElementById('package-code').value = '';
+      document.getElementById('package-name').value = '';
+      document.getElementById('package-channel').value = 'wechat';
+      document.getElementById('package-amount').value = '';
+      document.getElementById('package-points').value = '';
+      document.getElementById('package-sort').value = '10';
+      document.getElementById('package-status').value = '1';
+      openModal('modal-package');
+    }
+
+    function editPackage(pkgOrId) {
+      let p = pkgOrId;
+      if (typeof pkgOrId === 'number' || (typeof pkgOrId === 'string' && /^\d+$/.test(pkgOrId))) {
+        p = (cachedPackages || []).find(x => x.id == pkgOrId) || { id: pkgOrId };
+      }
+      if (!p) return;
+      document.getElementById('package-modal-title').innerText = '编辑充值套餐';
+      document.getElementById('package-id').value = p.id;
+      document.getElementById('package-code').value = p.code || '';
+      document.getElementById('package-name').value = p.name || '';
+      document.getElementById('package-channel').value = p.channel || 'wechat';
+      document.getElementById('package-amount').value = p.amount_cny || '';
+      document.getElementById('package-points').value = p.points || '';
+      document.getElementById('package-sort').value = p.sort_order || 10;
+      document.getElementById('package-status').value = String(p.status !== undefined ? p.status : 1);
+      openModal('modal-package');
+    }
+
+    async function submitPackageForm() {
+      const id = document.getElementById('package-id').value;
+      const code = document.getElementById('package-code').value;
+      const name = document.getElementById('package-name').value;
+      const channel = document.getElementById('package-channel').value;
+      const amount_cny = document.getElementById('package-amount').value;
+      const points = document.getElementById('package-points').value;
+      const sort_order = parseInt(document.getElementById('package-sort').value, 10) || 0;
+      const status = parseInt(document.getElementById('package-status').value, 10) || 1;
+
+      if (!code || !name || !amount_cny || !points) return toast('请填写所有必填字段', 'error');
+
+      try {
+        await api('/v0/management/portal/packages', {
+          method: 'POST',
+          body: JSON.stringify({
+            id: id ? parseInt(id, 10) : 0,
+            code, name, channel, amount_cny, points, sort_order, status
+          })
+        });
+        toast('套餐配置已保存');
+        closeModal('modal-package');
+        loadPackages();
+      } catch (err) {}
+    }
+
+    async function deletePackage(id) {
+      if (!confirm('确定要删除此充值套餐吗？')) return;
+      try {
+        await api('/v0/management/portal/packages/delete', {
+          method: 'POST',
+          body: JSON.stringify({ id: parseInt(id, 10) })
+        });
+        toast('套餐已删除');
+        loadPackages();
+      } catch (err) {}
+    }
+
+    // 5. Usage & Logs
+    let cachedUsageLogs = [];
+    async function loadUsage(page = 1) {
+      usagePage = page;
+      const search = document.getElementById('usage-search').value;
+      const model = document.getElementById('usage-model').value;
+      const outcome = document.getElementById('usage-outcome').value;
+      const dateFrom = document.getElementById('usage-date-from') ? document.getElementById('usage-date-from').value : '';
+      const dateTo = document.getElementById('usage-date-to') ? document.getElementById('usage-date-to').value : '';
+      const tbody = document.getElementById('usage-tbody');
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-3);">加载中...</td></tr>';
+      try {
+        const query = new URLSearchParams({ page, limit: pageSize });
+        if (search) query.set('search', search);
+        if (model) query.set('model', model);
+        if (outcome) query.set('outcome', outcome);
+        if (dateFrom) query.set('date_from', dateFrom);
+        if (dateTo) query.set('date_to', dateTo);
+        const data = await api(`/v0/management/portal/usage/logs?${query.toString()}`);
+        cachedUsageLogs = data.items || [];
+        document.getElementById('usage-total-badge').innerText = data.total;
+        document.getElementById('usage-page-info').innerText = `共 ${data.total} 条日志 · 第 ${page} 页`;
+        document.getElementById('usage-prev-btn').disabled = page <= 1;
+        document.getElementById('usage-next-btn').disabled = page * pageSize >= data.total;
+
+        if (cachedUsageLogs.length) {
+          tbody.innerHTML = cachedUsageLogs.map(log => `
+            <tr>
+              <td class="tabular-nums">${formatTime(log.created_at || log.timestamp)}</td>
+              <td>
+                <span class="td-primary font-mono">${escapeHtml(log.username || '未关联用户')}</span>
+                <span class="copy-chip" style="margin-left: 4px;" onclick="copyText('${log.api_key || ''}')" title="${escapeHtml(log.key_name || log.api_key || '')}">${escapeHtml(log.key_name || (log.api_key ? (log.api_key.substring(0, 10) + '...') : '-'))}</span>
+              </td>
+              <td>
+                <span class="copy-chip">${escapeHtml(log.protocol || log.provider || 'AI')}</span>
+                <code class="font-mono td-primary" style="margin-left: 4px;">${escapeHtml(log.model)}</code>
+              </td>
+              <td style="text-align: right; font-weight: 600;" class="tabular-nums font-mono">${(log.total_tokens || 0).toLocaleString()}</td>
+              <td class="tabular-nums font-mono text-muted" style="font-size:11px;">${log.input_tokens || 0} / ${log.output_tokens || 0} / ${log.reasoning_tokens || 0}</td>
+              <td class="tabular-nums">${log.latency_ms || 0}ms <small style="color:var(--text-3);">(${log.ttft_ms || 0}ms)</small></td>
+              <td>
+                <span class="status-badge ${log.failed === 0 ? 'status-active' : 'status-danger'}">
+                  <span class="status-dot"></span>
+                  ${log.failed === 0 ? '成功 (200)' : '失败 (' + (log.failure_status_code || '异常') + ')'}
+                </span>
+              </td>
+              <td style="text-align: right;">
+                ${log.failed === 1 && log.failure_body ? `<button class="btn btn-default btn-sm" onclick="showErrorDetail(${log.id})">查看错误</button>` : '-'}
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-3);">暂无请求日志</td></tr>';
+        }
+      } catch (err) {}
+    }
+    function prevUsagePage() { if (usagePage > 1) loadUsage(usagePage - 1); }
+    function nextUsagePage() { loadUsage(usagePage + 1); }
+
+    // Enhanced JSON Syntax Highlighter & Viewer Engine
+    let jsonViewerRegistry = {};
+
+    function formatByteSize(bytes) {
+      if (!bytes || bytes <= 0) return '0 B';
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function highlightJSONTokens(jsonStr, viewerId) {
+      if (!jsonStr) return '';
+      let foldCounter = 0;
+      return jsonStr.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?|[{}[\],:])/g, function(match) {
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            const keyContent = match.slice(0, -1);
+            return '<span class="json-token-key">' + escapeHtml(keyContent) + '</span><span class="json-token-punc">:</span>';
+          } else {
+            const innerStr = match.slice(1, -1);
+            // Detect long Base64 / Data URI or giant text > 160 chars
+            if (innerStr.length > 160 && (innerStr.startsWith('data:') || /^[A-Za-z0-9+/=]{160,}$/.test(innerStr))) {
+              const foldId = `jfold_${viewerId}_${++foldCounter}`;
+              const previewPrefix = innerStr.substring(0, 32);
+              const previewSuffix = innerStr.substring(innerStr.length - 12);
+              const sizeLabel = formatByteSize(innerStr.length);
+              return `<span class="json-token-str">"` +
+                escapeHtml(previewPrefix) +
+                `<button type="button" class="json-fold-btn" onclick="toggleJSONFold('${foldId}', this)">📦 ${sizeLabel} 展开</button>` +
+                `<span id="${foldId}" style="display:none;">` + escapeHtml(innerStr.substring(32, innerStr.length - 12)) + `</span>` +
+                escapeHtml(previewSuffix) + `"</span>`;
+            }
+            return '<span class="json-token-str">' + escapeHtml(match) + '</span>';
+          }
+        } else if (/true|false/.test(match)) {
+          return '<span class="json-token-bool">' + match + '</span>';
+        } else if (/null/.test(match)) {
+          return '<span class="json-token-null">' + match + '</span>';
+        } else if (/^-?\d/.test(match)) {
+          return '<span class="json-token-num">' + match + '</span>';
+        } else {
+          return '<span class="json-token-punc">' + escapeHtml(match) + '</span>';
+        }
+      });
+    }
+
+    function createJSONViewer(containerElId, rawData, options = {}) {
+      const viewerId = 'jv_' + Math.random().toString(36).substring(2, 9);
+      let parsedObj = null;
+      let rawStr = '';
+      let isJSON = false;
+
+      if (typeof rawData === 'object' && rawData !== null) {
+        parsedObj = rawData;
+        rawStr = JSON.stringify(rawData, null, 2);
+        isJSON = true;
+      } else if (typeof rawData === 'string') {
+        rawStr = rawData.trim();
+        parsedObj = safeParseJSON(rawStr);
+        if (parsedObj !== null && typeof parsedObj === 'object') {
+          isJSON = true;
+          rawStr = JSON.stringify(parsedObj, null, 2);
+        } else {
+          isJSON = false;
+          rawStr = decodeHtml(rawStr);
+        }
+      }
+
+      const byteLength = new Blob([rawStr]).size;
+      const sizeStr = formatByteSize(byteLength);
+
+      jsonViewerRegistry[viewerId] = {
+        rawStr,
+        parsedObj,
+        isJSON,
+        mode: 'formatted'
+      };
+
+      let html = `
+        <div class="json-viewer-container" id="${viewerId}">
+          <div class="json-viewer-toolbar">
+            <div class="json-viewer-meta">
+              <span class="copy-chip" style="font-size:10px;">${isJSON ? 'JSON' : 'TEXT'}</span>
+              <span>${sizeStr}</span>
+            </div>
+            <div class="json-viewer-actions">
+              ${isJSON ? `
+                <button type="button" class="json-viewer-btn" onclick="toggleJSONViewerMode('${viewerId}')" id="${viewerId}_btn_mode">
+                  <span>紧凑</span>
+                </button>
+              ` : ''}
+              <button type="button" class="json-viewer-btn" onclick="copyJSONViewerContent('${viewerId}', this)">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                <span>复制</span>
+              </button>
+            </div>
+          </div>
+          <div class="json-code-body" id="${viewerId}_body">`;
+
+      if (isJSON) {
+        const formatted = JSON.stringify(parsedObj, null, 2);
+        html += highlightJSONTokens(formatted, viewerId);
+      } else {
+        html += `<span style="color: var(--text-2); white-space: pre-wrap; word-break: break-all;">${escapeHtml(rawStr || '空内容')}</span>`;
+      }
+
+      html += `</div></div>`;
+      return html;
+    }
+
+    function toggleJSONFold(foldId, btn) {
+      const el = document.getElementById(foldId);
+      if (!el) return;
+      if (el.style.display === 'none') {
+        el.style.display = 'inline';
+        btn.innerText = '收起';
+      } else {
+        el.style.display = 'none';
+        btn.innerText = '展开';
+      }
+    }
+
+    function toggleJSONViewerMode(viewerId) {
+      const reg = jsonViewerRegistry[viewerId];
+      if (!reg || !reg.isJSON) return;
+      const bodyEl = document.getElementById(`${viewerId}_body`);
+      const btnMode = document.getElementById(`${viewerId}_btn_mode`);
+      if (!bodyEl) return;
+
+      if (reg.mode === 'formatted') {
+        reg.mode = 'compact';
+        const compactStr = JSON.stringify(reg.parsedObj);
+        bodyEl.innerHTML = highlightJSONTokens(compactStr, viewerId);
+        if (btnMode) btnMode.innerHTML = '<span>美化</span>';
+      } else {
+        reg.mode = 'formatted';
+        const formattedStr = JSON.stringify(reg.parsedObj, null, 2);
+        bodyEl.innerHTML = highlightJSONTokens(formattedStr, viewerId);
+        if (btnMode) btnMode.innerHTML = '<span>紧凑</span>';
+      }
+    }
+
+    function copyJSONViewerContent(viewerId, btn) {
+      const reg = jsonViewerRegistry[viewerId];
+      if (!reg) return;
+      let text = reg.rawStr;
+      if (reg.isJSON && reg.mode === 'formatted') {
+        text = JSON.stringify(reg.parsedObj, null, 2);
+      }
+      copyText(text);
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = `<span style="color: var(--success);">已复制</span>`;
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+      }, 1500);
+    }
+
+    let currentErrorText = '';
+    function showErrorDetail(logIdOrBody) {
+      let body = logIdOrBody;
+      if (typeof logIdOrBody === 'number' || (typeof logIdOrBody === 'string' && /^\d+$/.test(logIdOrBody))) {
+        const found = (cachedUsageLogs || []).find(l => l.id == logIdOrBody);
+        if (found) body = found.failure_body;
+      }
+      currentErrorText = typeof body === 'object' ? JSON.stringify(body, null, 2) : (body || '');
+      const container = document.getElementById('error-inspector-content');
+      if (container) {
+        container.innerHTML = createJSONViewer('error-inspector-content', body);
+      }
+      openModal('modal-error');
+    }
+
+    // 6. AIGC Tasks & Slide-out Drawer
+    async function loadAIGC(page = 1) {
+      aigcPage = page;
+      const search = document.getElementById('aigc-search').value;
+      const kind = document.getElementById('aigc-kind').value;
+      const status = document.getElementById('aigc-status').value;
+      const dateFrom = document.getElementById('aigc-date-from') ? document.getElementById('aigc-date-from').value : '';
+      const dateTo = document.getElementById('aigc-date-to') ? document.getElementById('aigc-date-to').value : '';
+      const tbody = document.getElementById('aigc-tbody');
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-3);">加载中...</td></tr>';
+      try {
+        const query = new URLSearchParams({ page, limit: pageSize });
+        if (search) query.set('search', search);
+        if (kind) query.set('kind', kind);
+        if (status) query.set('status', status);
+        if (dateFrom) query.set('date_from', dateFrom);
+        if (dateTo) query.set('date_to', dateTo);
+        const data = await api(`/v0/management/portal/aigc/tasks?${query.toString()}`);
+        document.getElementById('aigc-total-badge').innerText = data.total;
+        document.getElementById('aigc-page-info').innerText = `共 ${data.total} 个任务 · 第 ${page} 页`;
+        document.getElementById('aigc-prev-btn').disabled = page <= 1;
+        document.getElementById('aigc-next-btn').disabled = page * pageSize >= data.total;
+
+        if (data.items && data.items.length) {
+          tbody.innerHTML = data.items.map(t => {
+            const isRunning = t.status === 'running' || t.status === 'pending';
+            return `
+              <tr>
+                <td><span class="copy-chip" onclick="copyText('${t.generation_id}')">${escapeHtml(t.generation_id)}</span></td>
+                <td class="td-primary font-mono">${escapeHtml(t.username || '未知用户')}</td>
+                <td>
+                  <span class="copy-chip">${AIGCKindMap[t.kind] || t.kind}</span>
+                  <code class="font-mono" style="margin-left: 4px;">${escapeHtml(t.model)}</code>
+                </td>
+                <td><span class="tabular-nums font-mono">${formatAIGCStage(t.stage, t.progress)}</span></td>
+                <td>
+                  <span class="status-badge ${t.status === 'succeeded' ? 'status-active' : isRunning ? 'status-pending' : 'status-danger'}">
+                    <span class="status-dot"></span>
+                    ${AIGCStatusMap[t.status] || t.status}
+                  </span>
+                </td>
+                <td class="tabular-nums">${formatTime(t.created_at)}</td>
+                <td style="text-align: right;">
+                  <div style="display: inline-flex; gap: 4px;">
+                    <button class="btn btn-default btn-sm" onclick="showAIGCDrawer('${t.generation_id}')">查看详情</button>
+                    ${isRunning ? `<button class="btn btn-danger btn-sm" onclick="cancelAIGCTask('${t.generation_id}')">终止</button>` : ''}
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-3);">暂无 AIGC 任务</td></tr>';
+        }
+      } catch (err) {}
+    }
+    function prevAIGCPage() { if (aigcPage > 1) loadAIGC(aigcPage - 1); }
+    function nextAIGCPage() { loadAIGC(aigcPage + 1); }
+
+    async function showAIGCDrawer(genID) {
+      document.getElementById('drawer-aigc-title').innerText = `任务: ${genID}`;
+      document.getElementById('drawer-aigc-status-badge').innerHTML = '';
+      const body = document.getElementById('drawer-aigc-body');
+      body.innerHTML = '<div style="color: var(--text-3); text-align: center; padding: 40px;">正在加载任务详情与产物...</div>';
+      openDrawer('drawer-aigc');
+
+      try {
+        const task = await api(`/v0/management/portal/aigc/task-detail?id=${encodeURIComponent(genID)}`);
+        const isRunning = task.status === 'running' || task.status === 'pending';
+
+        // 1. Status Badge in Header
+        document.getElementById('drawer-aigc-status-badge').innerHTML = `
+          <span class="status-badge ${task.status === 'succeeded' ? 'status-active' : isRunning ? 'status-pending' : 'status-danger'}">
+            <span class="status-dot"></span>
+            ${AIGCStatusMap[task.status] || task.status}
+          </span>
+        `;
+
+        // 2. Parse Input Parameters
+        const parsedInput = safeParseJSON(task.input);
+        let promptText = '';
+        let negativePrompt = '';
+        let inputFields = {};
+
+        if (parsedInput && typeof parsedInput === 'object') {
+          promptText = parsedInput.prompt || parsedInput.text || parsedInput.input_text || '';
+          if (!promptText && parsedInput.input && typeof parsedInput.input === 'object') {
+            promptText = parsedInput.input.prompt || parsedInput.input.text || '';
+          }
+          if (!promptText && Array.isArray(parsedInput.messages) && parsedInput.messages.length > 0) {
+            promptText = parsedInput.messages[parsedInput.messages.length - 1].content || '';
+          }
+          negativePrompt = parsedInput.negative_prompt || (parsedInput.input && parsedInput.input.negative_prompt) || '';
+          inputFields = parsedInput;
+        } else if (typeof task.input === 'string') {
+          promptText = decodeHtml(task.input);
+        }
+
+        let paramBadges = [];
+        if (parsedInput && typeof parsedInput === 'object') {
+          const p = (parsedInput.input && typeof parsedInput.input === 'object') ? Object.assign({}, parsedInput, parsedInput.input) : parsedInput;
+          if (p.ratio || p.aspect_ratio) paramBadges.push(`比例: ${p.ratio || p.aspect_ratio}`);
+          if (p.resolution || p.size || p.image_size) paramBadges.push(`分辨率: ${p.resolution || p.size || p.image_size}`);
+          if (p.duration || p.duration_seconds) paramBadges.push(`时长: ${p.duration || p.duration_seconds}s`);
+          if (p.fps) paramBadges.push(`帧率: ${p.fps}fps`);
+          if (p.seed !== undefined && p.seed !== null) paramBadges.push(`Seed: ${p.seed}`);
+          if (p.camera || p.camera_motion) paramBadges.push(`运镜: ${p.camera || p.camera_motion}`);
+          if (p.quality) paramBadges.push(`质量: ${p.quality}`);
+          if (p.steps || p.num_inference_steps) paramBadges.push(`步数: ${p.steps || p.num_inference_steps}`);
+        }
+
+        // 3. Parse Output & Extract Media URLs if Artifacts empty
+        const parsedOutput = safeParseJSON(task.output);
+
+        // 4. Artifacts List
+        let mediaItems = [];
+        if (task.artifacts && task.artifacts.length) {
+          mediaItems = task.artifacts.map(a => ({
+            type: a.artifact_type || 'video',
+            uri: a.uri,
+            mime: a.mime_type || '',
+            size: a.size_bytes || 0
+          }));
+        } else if (parsedOutput && typeof parsedOutput === 'object') {
+          // Extract from output JSON if artifacts table had no records
+          const potentialURLs = [
+            parsedOutput.video_url, parsedOutput.url, parsedOutput.image_url,
+            parsedOutput.download_url, parsedOutput.result_url
+          ].filter(Boolean);
+          potentialURLs.forEach(uri => {
+            const isVid = uri.includes('.mp4') || uri.includes('video') || task.kind === 'video';
+            mediaItems.push({
+              type: isVid ? 'video' : 'image',
+              uri,
+              mime: isVid ? 'video/mp4' : 'image/jpeg',
+              size: 0
+            });
+          });
+        }
+
+        // Render Artifacts HTML
+        let artifactsHTML = '';
+        if (mediaItems.length > 0) {
+          artifactsHTML = mediaItems.map((item, idx) => {
+            const isVideo = item.mime.includes('video') || item.type === 'video' || item.uri.endsWith('.mp4');
+            const isImage = item.mime.includes('image') || item.type === 'image' || item.uri.endsWith('.png') || item.uri.endsWith('.jpg') || item.uri.endsWith('.jpeg');
+            const sizeStr = item.size > 0 ? (item.size / 1024 / 1024).toFixed(2) + ' MB' : '在线资源';
+
+            return `
+              <div style="margin-top: 10px;">
+                <div class="media-preview-box">
+                  ${isVideo ? `
+                    <video controls preload="metadata" playsinline src="${item.uri}">
+                      您的浏览器不支持 HTML5 视频播放。
+                    </video>
+                  ` : isImage ? `
+                    <img src="${item.uri}" alt="产物预览" loading="lazy" />
+                  ` : `
+                    <div style="padding: 20px; text-align: center; color: var(--text-2);">
+                      ${escapeHtml(item.type)} 产物: <a href="${item.uri}" target="_blank" style="color:var(--accent);">${escapeHtml(item.uri)}</a>
+                    </div>
+                  `}
+                </div>
+                <div class="media-action-bar">
+                  <span class="copy-chip" style="margin-right: auto;">
+                    ${isVideo ? '视频产物' : isImage ? '图片产物' : '生成文件'} · ${sizeStr}
+                  </span>
+                  <a href="${item.uri}" target="_blank" class="btn btn-default btn-sm">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    在新窗口打开
+                  </a>
+                  <button class="btn btn-default btn-sm" onclick="copyText('${item.uri}')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                    复制直链
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          artifactsHTML = `
+            <div style="padding: 16px; background: var(--surface-elevated); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); color: var(--text-3); text-align: center; font-size: 12px;">
+              ${isRunning ? '任务正在后台运算中，产物生成后将自动展示...' : '未查询到关联产物'}
+            </div>
+          `;
+        }
+
+        // 5. Parse Billing Usage
+        const billingInfo = safeParseJSON(task.billing_usage);
+
+        // Build Drawer Body Content
+        body.innerHTML = `
+          <!-- Overview Card -->
+          <div class="detail-card">
+            <div class="detail-card-header">
+              <span>基本信息</span>
+              <span class="copy-chip font-mono" onclick="copyText('${task.generation_id}')">${task.generation_id}</span>
+            </div>
+            <div class="meta-grid">
+              <div class="meta-item">
+                <span class="meta-item-label">所属用户</span>
+                <span class="meta-item-value font-mono td-primary">${escapeHtml(task.username || '未关联用户')}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-item-label">生成类型</span>
+                <span class="meta-item-value">${AIGCKindMap[task.kind] || task.kind}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-item-label">使用模型</span>
+                <span class="meta-item-value font-mono">${escapeHtml(task.model)}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-item-label">执行渠道</span>
+                <span class="meta-item-value">${escapeHtml(task.provider || '-')}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-item-label">当前阶段与进度</span>
+                <span class="meta-item-value font-mono">
+                  ${formatAIGCStage(task.stage, task.progress)}
+                  ${task.progress > 0 && isRunning ? `
+                    <div style="height: 4px; border-radius: 2px; background: var(--surface-hover); overflow: hidden; margin-top: 4px; max-width: 160px;">
+                      <div style="height: 100%; width: ${task.progress}%; background: var(--accent); transition: width 0.3s ease;"></div>
+                    </div>
+                  ` : ''}
+                </span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-item-label">创建时间</span>
+                <span class="meta-item-value tabular-nums">${formatTime(task.created_at)}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error Alert (If Failed) -->
+          ${task.error_message || task.error_code ? `
+            <div style="padding: 12px; background: var(--danger-subtle); border-radius: var(--radius-sm); border: 1px solid rgba(239,68,68,0.25); color: var(--danger);">
+              <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px;">任务执行失败 ${task.error_code ? `(${task.error_code})` : ''}</div>
+              <div style="font-size: 12px; line-height: 1.5;">${escapeHtml(task.error_message || '未知异常')}</div>
+              <div style="margin-top: 8px;">
+                <button class="btn btn-default btn-sm" onclick="openCreateRuleFromTask('${escapeJsString(task.provider || '*')}', '${escapeJsString(task.error_code || '')}', '${escapeJsString(task.error_message || '')}')">⚙️ 将此报错配置为转换规则</button>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Artifacts Section -->
+          <div class="detail-card">
+            <div class="detail-card-header">
+              <span>生成结果与产物预览</span>
+            </div>
+            ${artifactsHTML}
+          </div>
+
+          <!-- Prompt & Generation Parameters -->
+          <div class="detail-card">
+            <div class="detail-card-header">
+              <span>生成提示词与参数</span>
+              <button class="btn btn-ghost btn-sm" onclick="copyText('${escapeJsString(promptText)}')">复制提示词</button>
+            </div>
+            <div class="prompt-box">${escapeHtml(promptText || '无文本提示词')}</div>
+
+            ${negativePrompt ? `
+              <div style="margin-top: 10px;">
+                <div style="font-size: 11px; color: var(--text-3); margin-bottom: 4px;">负向提示词 (Negative Prompt):</div>
+                <div class="prompt-box" style="color: var(--text-2); font-size: 11px;">${escapeHtml(negativePrompt)}</div>
+              </div>
+            ` : ''}
+
+            ${paramBadges.length > 0 ? `
+              <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px;">
+                ${paramBadges.map(b => `<span class="copy-chip" style="font-size:11px;">${escapeHtml(b)}</span>`).join('')}
+              </div>
+            ` : ''}
+
+            <!-- Collapsible Raw Input JSON -->
+            <div style="margin-top: 12px;">
+              <div class="collapsible-header" onclick="toggleCollapse('raw-input-json')">
+                <span>完整请求报文 (Raw Input JSON)</span>
+                <span id="raw-input-json-icon">▼</span>
+              </div>
+              <div id="raw-input-json" style="display: none;">
+                ${createJSONViewer('drawer-input-viewer', task.input)}
+              </div>
+            </div>
+          </div>
+
+          <!-- Output & Billing Usage Section -->
+          <div class="detail-card">
+            <div class="detail-card-header">
+              <span>响应报文与计费信息</span>
+            </div>
+            ${billingInfo ? `
+              <div class="meta-grid" style="margin-bottom: 10px;">
+                <div class="meta-item">
+                  <span class="meta-item-label">扣除积分 (Quota)</span>
+                  <span class="meta-item-value font-mono" style="color: var(--accent); font-weight: 600;">${billingInfo.quota || billingInfo.cost || '-'}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-item-label">生成耗时</span>
+                  <span class="meta-item-value font-mono">${billingInfo.duration ? billingInfo.duration + ' 秒' : '-'}</span>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Collapsible Raw Output JSON -->
+            <div>
+              <div class="collapsible-header" onclick="toggleCollapse('raw-output-json')">
+                <span>上游响应报文 (Raw Output JSON)</span>
+                <span id="raw-output-json-icon">▼</span>
+              </div>
+              <div id="raw-output-json" style="display: none;">
+                ${createJSONViewer('drawer-output-viewer', task.output || '暂无响应报文')}
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Footer Actions
+        let actionButtons = '';
+        if (isRunning) {
+          actionButtons += `<button class="btn btn-danger btn-sm" onclick="cancelAIGCTask('${task.generation_id}')">强制终止任务</button>`;
+        }
+        if (task.status === 'failed' || task.status === 'canceled') {
+          actionButtons += `<button class="btn btn-default btn-sm" style="margin-right: 8px;" onclick="promptRefundDrawer('${task.generation_id}')">退款补偿至用户</button>`;
+        }
+        document.getElementById('drawer-aigc-actions').innerHTML = actionButtons;
+
+      } catch (err) {
+        body.innerHTML = '<div style="color: var(--danger); text-align: center; padding: 40px;">加载详情失败: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+
+    function toggleCollapse(id) {
+      const el = document.getElementById(id);
+      const icon = document.getElementById(id + '-icon');
+      if (el.style.display === 'none') {
+        el.style.display = 'block';
+        if (icon) icon.innerText = '▲';
+      } else {
+        el.style.display = 'none';
+        if (icon) icon.innerText = '▼';
+      }
+    }
+
+    function formatJSON(raw) {
+      if (!raw) return '';
+      const parsed = safeParseJSON(raw);
+      if (parsed !== null) {
+        return JSON.stringify(parsed, null, 2);
+      }
+      return typeof raw === 'string' ? decodeHtml(raw) : String(raw);
+    }
+
+    function escapeJsString(str) {
+      if (!str) return '';
+      return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+    }
+
+    async function cancelAIGCTask(genID) {
+      if (!confirm(`确认强制终止任务 [${genID}] 吗？`)) return;
+      try {
+        await api('/v0/management/portal/aigc/task-cancel', {
+          method: 'POST',
+          body: JSON.stringify({ generation_id: genID })
+        });
+        toast('任务已被管理员强制终止');
+        closeDrawer('drawer-aigc');
+        loadAIGC(aigcPage);
+      } catch (err) {}
+    }
+
+    async function promptRefundDrawer(genID) {
+      const amount = prompt('请输入退还至用户的积分金额 (如 10.0):');
+      if (!amount) return;
+      const remark = prompt('请输入退款备注:', 'AIGC任务异常补偿');
+      try {
+        await api('/v0/management/portal/aigc/task-refund', {
+          method: 'POST',
+          body: JSON.stringify({ generation_id: genID, amount, remark })
+        });
+        toast('退款已到账并写入流水');
+        closeDrawer('drawer-aigc');
+        loadAIGC(aigcPage);
+      } catch (err) {}
+    }
+
+    // -------------------------------------------------------------------------
+    // 8. Error Mapping Rules Controller
+    // -------------------------------------------------------------------------
+    let errorRulesPage = 1;
+    let totalErrorRulesPages = 1;
+
+    const MatchTypeNames = {
+      code_contains: '错误码包含',
+      code_exact: '错误码精确',
+      code_prefix: '错误码前缀',
+      msg_contains: '文本包含',
+      msg_regex: '文本正则'
+    };
+
+    async function loadErrorRules(page = 1) {
+      errorRulesPage = page;
+      const tbody = document.getElementById('error-rules-tbody');
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--text-3);">加载中...</td></tr>';
+
+      const provider = document.getElementById('rule-provider-filter').value;
+      const status = document.getElementById('rule-status-filter').value;
+      const search = document.getElementById('rule-search').value.trim();
+
+      const params = new URLSearchParams({ page, limit: 15 });
+      if (provider && provider !== 'all') params.append('provider', provider);
+      if (status && status !== 'all') params.append('status', status);
+      if (search) params.append('search', search);
+
+      try {
+        const data = await api(`/v0/management/portal/error-rules?${params.toString()}`);
+        const items = data.items || [];
+        const total = data.total || 0;
+        totalErrorRulesPages = Math.ceil(total / 15) || 1;
+
+        document.getElementById('error-rules-page-info').innerText = `第 ${errorRulesPage} / ${totalErrorRulesPages} 页 (共 ${total} 条规则)`;
+        document.getElementById('rule-prev-btn').disabled = (errorRulesPage <= 1);
+        document.getElementById('rule-next-btn').disabled = (errorRulesPage >= totalErrorRulesPages);
+
+        if (items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--text-3); padding: 30px;">未查询到匹配的错误规则</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = items.map(r => {
+          const isEnabled = r.status === 1;
+          return `
+            <tr>
+              <td class="font-mono" style="font-size: 11px; color: var(--text-3);">${r.id}</td>
+              <td class="font-mono" style="font-weight: 500;">
+                <span class="copy-chip" onclick="copyText('${escapeJsString(r.provider)}')">${escapeHtml(r.provider)}</span>
+              </td>
+              <td><span style="font-size: 11px; color: var(--text-2); background: var(--surface-hover); padding: 2px 6px; border-radius: 4px;">${escapeHtml(MatchTypeNames[r.match_type] || r.match_type)}</span></td>
+              <td class="font-mono" style="font-size: 12px; color: var(--text-1); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(r.match_pattern)}">
+                ${escapeHtml(r.match_pattern)}
+              </td>
+              <td class="font-mono" style="font-size: 12px; color: var(--accent); font-weight: 500;">
+                ${escapeHtml(r.standard_code)}
+              </td>
+              <td class="font-mono"><span style="font-size: 11px; font-weight: 600; color: ${r.http_status >= 500 ? 'var(--danger)' : r.http_status === 429 ? 'var(--warning)' : 'var(--text-1)'};">${r.http_status}</span></td>
+              <td style="font-size: 12px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(r.user_message)}">
+                ${escapeHtml(r.user_message)}
+              </td>
+              <td class="font-mono" style="font-size: 12px; text-align: center;">${r.priority}</td>
+              <td>
+                <span class="status-badge ${isEnabled ? 'status-active' : 'status-danger'}" style="cursor: pointer;" onclick="toggleRuleStatus(${r.id}, ${r.status})">
+                  <span class="status-dot"></span>
+                  ${isEnabled ? '启用' : '禁用'}
+                </span>
+              </td>
+              <td style="text-align: right;">
+                <div style="display: inline-flex; gap: 4px;">
+                  <button class="btn btn-ghost btn-sm" onclick="openEditRuleModal(${r.id})">编辑</button>
+                  <button class="btn btn-ghost btn-sm" style="color: var(--danger);" onclick="deleteErrorRule(${r.id})">删除</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger);">加载失败: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function prevErrorRulesPage() {
+      if (errorRulesPage > 1) loadErrorRules(errorRulesPage - 1);
+    }
+    function nextErrorRulesPage() {
+      if (errorRulesPage < totalErrorRulesPages) loadErrorRules(errorRulesPage + 1);
+    }
+
+    function openCreateRuleModal() {
+      document.getElementById('modal-error-rule-title').innerText = '新建错误映射规则';
+      document.getElementById('rule-id').value = '';
+      document.getElementById('rule-provider').value = '*';
+      document.getElementById('rule-match-type').value = 'code_contains';
+      document.getElementById('rule-match-pattern').value = '';
+      document.getElementById('rule-standard-code').value = '';
+      document.getElementById('rule-standard-type').value = 'invalid_request_error';
+      document.getElementById('rule-http-status').value = '400';
+      document.getElementById('rule-priority').value = '50';
+      document.getElementById('rule-user-message').value = '';
+      document.getElementById('rule-user-message-en').value = '';
+      document.getElementById('rule-status').value = '1';
+      document.getElementById('rule-description').value = '';
+      openModal('modal-error-rule');
+    }
+
+    async function openEditRuleModal(id) {
+      try {
+        const rule = await api(`/v0/management/portal/error-rules/detail?id=${id}`);
+        document.getElementById('modal-error-rule-title').innerText = `编辑错误规则 (ID: ${rule.id})`;
+        document.getElementById('rule-id').value = rule.id;
+        document.getElementById('rule-provider').value = rule.provider || '*';
+        document.getElementById('rule-match-type').value = rule.match_type || 'code_contains';
+        document.getElementById('rule-match-pattern').value = rule.match_pattern || '';
+        document.getElementById('rule-standard-code').value = rule.standard_code || '';
+        document.getElementById('rule-standard-type').value = rule.standard_type || 'invalid_request_error';
+        document.getElementById('rule-http-status').value = rule.http_status || 400;
+        document.getElementById('rule-priority').value = rule.priority || 50;
+        document.getElementById('rule-user-message').value = rule.user_message || '';
+        document.getElementById('rule-user-message-en').value = rule.user_message_en || '';
+        document.getElementById('rule-status').value = String(rule.status);
+        document.getElementById('rule-description').value = rule.description || '';
+        openModal('modal-error-rule');
+      } catch (err) {}
+    }
+
+    async function saveErrorRule() {
+      const id = document.getElementById('rule-id').value;
+      const provider = document.getElementById('rule-provider').value.trim();
+      const matchType = document.getElementById('rule-match-type').value;
+      const matchPattern = document.getElementById('rule-match-pattern').value.trim();
+      const standardCode = document.getElementById('rule-standard-code').value.trim();
+      const standardType = document.getElementById('rule-standard-type').value;
+      const httpStatus = parseInt(document.getElementById('rule-http-status').value, 10) || 400;
+      const priority = parseInt(document.getElementById('rule-priority').value, 10) || 100;
+      const userMessage = document.getElementById('rule-user-message').value.trim();
+      const userMessageEN = document.getElementById('rule-user-message-en').value.trim();
+      const status = parseInt(document.getElementById('rule-status').value, 10);
+      const description = document.getElementById('rule-description').value.trim();
+
+      if (!matchPattern || !standardCode || !userMessage) {
+        toast('匹配特征、标准错误码和中文文案为必填项', 'error');
+        return;
+      }
+
+      const payload = {
+        provider: provider || '*',
+        match_type: matchType,
+        match_pattern: matchPattern,
+        standard_code: standardCode,
+        standard_type: standardType,
+        http_status: httpStatus,
+        priority: priority,
+        user_message: userMessage,
+        user_message_en: userMessageEN,
+        status: status,
+        description: description
+      };
+
+      try {
+        if (id) {
+          payload.id = parseInt(id, 10);
+          await api('/v0/management/portal/error-rules/update', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          toast('规则已更新并热生效至引擎');
+        } else {
+          await api('/v0/management/portal/error-rules/create', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          toast('规则已创建并热生效至引擎');
+        }
+        closeModal('modal-error-rule');
+        loadErrorRules(errorRulesPage);
+      } catch (err) {}
+    }
+
+    async function deleteErrorRule(id) {
+      if (!confirm(`确认删除错误映射规则 #${id} 吗？`)) return;
+      try {
+        await api('/v0/management/portal/error-rules/delete', {
+          method: 'POST',
+          body: JSON.stringify({ id })
+        });
+        toast('规则已删除并同步引擎');
+        loadErrorRules(errorRulesPage);
+      } catch (err) {}
+    }
+
+    async function toggleRuleStatus(id, currentStatus) {
+      const newStatus = currentStatus === 1 ? 0 : 1;
+      try {
+        const rule = await api(`/v0/management/portal/error-rules/detail?id=${id}`);
+        rule.status = newStatus;
+        await api('/v0/management/portal/error-rules/update', {
+          method: 'POST',
+          body: JSON.stringify(rule)
+        });
+        toast(`规则已${newStatus === 1 ? '启用' : '禁用'}`);
+        loadErrorRules(errorRulesPage);
+      } catch (err) {}
+    }
+
+    function openRuleTestModal() {
+      document.getElementById('test-result-box').style.display = 'none';
+      openModal('modal-rule-test');
+    }
+
+    async function runRuleTest() {
+      const provider = document.getElementById('test-provider').value.trim();
+      const statusCode = parseInt(document.getElementById('test-status-code').value, 10) || 400;
+      const rawBody = document.getElementById('test-raw-body').value.trim();
+
+      if (!rawBody) {
+        toast('请输入要测试的上游响应报文', 'error');
+        return;
+      }
+
+      try {
+        const res = await api('/v0/management/portal/error-rules/test', {
+          method: 'POST',
+          body: JSON.stringify({ provider, status_code: statusCode, raw_body: rawBody })
+        });
+
+        document.getElementById('test-res-code').innerText = res.code || '-';
+        document.getElementById('test-res-status').innerText = res.status_code || statusCode;
+        document.getElementById('test-res-type').innerText = res.type || '-';
+        document.getElementById('test-res-upstream').innerText = res.upstream_code || '无';
+        document.getElementById('test-res-msg').innerText = res.message || '-';
+        document.getElementById('test-result-box').style.display = 'block';
+      } catch (err) {}
+    }
+
+    async function openUnclassifiedErrorsModal() {
+      openModal('modal-unclassified-errors');
+      loadUnclassifiedErrors();
+    }
+
+    async function loadUnclassifiedErrors() {
+      const tbody = document.getElementById('unclassified-tbody');
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-3);">扫描近期失败任务中...</td></tr>';
+      try {
+        const data = await api('/v0/management/portal/error-rules/unclassified?limit=30');
+        const items = data.items || [];
+        if (items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--success); padding: 30px;">太棒了！近期无未分类报错</td></tr>';
+          return;
+        }
+        tbody.innerHTML = items.map(item => {
+          return `
+            <tr>
+              <td class="font-mono">${escapeHtml(item.provider || '*')}</td>
+              <td class="font-mono" style="font-weight: 500; color: var(--accent);">${escapeHtml(item.error_code || 'NO_CODE')}</td>
+              <td style="font-size: 12px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.error_message || '')}">
+                ${escapeHtml(item.error_message || '-')}
+              </td>
+              <td class="font-mono" style="font-weight: 600;">${item.count}</td>
+              <td style="text-align: right;">
+                <button class="btn btn-default btn-sm" onclick="createRuleFromUnclassified('${escapeJsString(item.provider || '*')}', '${escapeJsString(item.error_code || '')}', '${escapeJsString(item.error_message || '')}')">转为规则</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger);">加载失败: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function createRuleFromUnclassified(provider, code, msg) {
+      closeModal('modal-unclassified-errors');
+      openCreateRuleModal();
+      document.getElementById('rule-provider').value = provider || '*';
+      if (code && code !== 'NO_CODE' && code !== 'HTTP_400' && code !== 'HTTP_500') {
+        document.getElementById('rule-match-type').value = 'code_contains';
+        document.getElementById('rule-match-pattern').value = code;
+      } else if (msg) {
+        document.getElementById('rule-match-type').value = 'msg_contains';
+        document.getElementById('rule-match-pattern').value = msg.substring(0, 60);
+      }
+      document.getElementById('rule-description').value = `根据近期 ${provider} 报错自动收录`;
+    }
+
+    function openCreateRuleFromTask(provider, code, msg) {
+      openCreateRuleModal();
+      document.getElementById('rule-provider').value = provider || '*';
+      if (code && code !== 'NO_CODE' && !code.startsWith('HTTP_')) {
+        document.getElementById('rule-match-type').value = 'code_contains';
+        document.getElementById('rule-match-pattern').value = code;
+      } else if (msg) {
+        document.getElementById('rule-match-type').value = 'msg_contains';
+        document.getElementById('rule-match-pattern').value = msg.substring(0, 60);
+      }
+      document.getElementById('rule-description').value = `根据 AIGC 任务报错快速创建`;
+    }
+
+    // Utilities
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function decodeHtml(str) {
+      if (!str || typeof str !== 'string') return str || '';
+      return str
+        .replace(/&quot;/g, '"')
+        .replace(/&#34;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+    }
+
+    // 9. API Docs Management
+    async function loadDocs() {
+      const search = (document.getElementById('doc-search')?.value || '').trim();
+      const category = document.getElementById('doc-category-filter')?.value || 'all';
+      const status = document.getElementById('doc-status-filter')?.value || 'all';
+      const tbody = document.getElementById('docs-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-3);">加载中...</td></tr>';
+
+      try {
+        let url = '/v0/management/portal/docs?';
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (category && category !== 'all') params.append('category', category);
+        if (status && status !== 'all') params.append('status', status);
+        url += params.toString();
+
+        const data = await api(url);
+        const items = data.items || [];
+        if (!items.length) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-3); padding: 30px;">暂无任何 API 文档文章</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = items.map(d => `
+          <tr>
+            <td style="text-align: center;" class="tabular-nums font-mono">${d.sort_order ?? 0}</td>
+            <td class="td-primary">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-weight: 600;">${escapeHtml(d.title)}</span>
+                ${d.badge ? `<span class="badge" style="background: var(--accent-subtle); color: var(--accent); font-size: 10px;">${escapeHtml(d.badge)}</span>` : ''}
+              </div>
+            </td>
+            <td><code style="font-size: 11px; color: var(--accent);">${escapeHtml(d.slug)}</code></td>
+            <td><span class="badge" style="font-size: 11px;">${escapeHtml(d.category || 'general')}</span></td>
+            <td style="text-align: center;"><span class="badge" style="font-size: 10px; font-family: var(--font-mono);">${escapeHtml(d.icon || 'file-text')}</span></td>
+            <td style="text-align: center;">
+              <span class="badge ${d.status === 1 ? 'badge-success' : 'badge-neutral'}">
+                ● ${d.status === 1 ? '已发布' : '草稿'}
+              </span>
+            </td>
+            <td style="font-size: 11px; color: var(--text-3);">${formatTime(d.updated_at)}</td>
+            <td style="text-align: right;">
+              <div style="display: flex; gap: 4px; justify-content: flex-end;">
+                <button class="btn btn-default btn-xs" onclick="openEditDocModal(${d.id})">编辑</button>
+                <button class="btn btn-default btn-xs" onclick="toggleDocStatus(${d.id})">${d.status === 1 ? '下线' : '发布'}</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteDocArticle(${d.id}, '${escapeHtml(d.title)}')">删除</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger);">加载失败: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function openCreateDocModal() {
+      document.getElementById('doc-id').value = '';
+      document.getElementById('doc-title').value = '';
+      document.getElementById('doc-slug').value = '';
+      document.getElementById('doc-badge').value = '';
+      document.getElementById('doc-category').value = 'guide';
+      document.getElementById('doc-icon').value = 'file-text';
+      document.getElementById('doc-sort-order').value = '0';
+      document.getElementById('doc-status').checked = true;
+      document.getElementById('doc-content-md').value = '# 文档标题\n\n在此输入详细的 API 接口说明与代码示例...';
+      document.getElementById('modal-doc-title').innerText = '新建 API 文档';
+      updateDocModalPreview();
+      openModal('modal-doc-edit');
+    }
+
+    async function openEditDocModal(id) {
+      try {
+        const doc = await api(`/v0/management/portal/docs/get?id=${id}`);
+        if (!doc) return;
+        document.getElementById('doc-id').value = doc.id;
+        document.getElementById('doc-title').value = doc.title || '';
+        document.getElementById('doc-slug').value = doc.slug || '';
+        document.getElementById('doc-badge').value = doc.badge || '';
+        document.getElementById('doc-category').value = doc.category || 'guide';
+        document.getElementById('doc-icon').value = doc.icon || 'file-text';
+        document.getElementById('doc-sort-order').value = doc.sort_order ?? 0;
+        document.getElementById('doc-status').checked = (doc.status === 1);
+        document.getElementById('doc-content-md').value = doc.content_md || '';
+        document.getElementById('modal-doc-title').innerText = `编辑 API 文档: ${doc.title}`;
+        updateDocModalPreview();
+        openModal('modal-doc-edit');
+      } catch (err) {}
+    }
+
+    async function saveDocArticle() {
+      const id = document.getElementById('doc-id').value;
+      const title = document.getElementById('doc-title').value.trim();
+      const slug = document.getElementById('doc-slug').value.trim().toLowerCase();
+      const badge = document.getElementById('doc-badge').value.trim();
+      const category = document.getElementById('doc-category').value.trim() || 'general';
+      const icon = document.getElementById('doc-icon').value.trim() || 'file-text';
+      const sortOrder = parseInt(document.getElementById('doc-sort-order').value, 10) || 0;
+      const status = document.getElementById('doc-status').checked ? 1 : 0;
+      const contentMD = document.getElementById('doc-content-md').value;
+
+      if (!title) {
+        toast('文档标题不能为空', 'error');
+        return;
+      }
+      if (!slug) {
+        toast('Slug 唯一标识不能为空', 'error');
+        return;
+      }
+      if (!contentMD.trim()) {
+        toast('文档 Markdown 内容不能为空', 'error');
+        return;
+      }
+
+      const payload = {
+        title,
+        slug,
+        badge,
+        category,
+        icon,
+        sort_order: sortOrder,
+        status,
+        content_md: contentMD
+      };
+
+      try {
+        if (id) {
+          payload.id = parseInt(id, 10);
+          await api('/v0/management/portal/docs/update', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          toast('文档更新成功');
+        } else {
+          await api('/v0/management/portal/docs/create', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          toast('文档创建成功');
+        }
+        closeModal('modal-doc-edit');
+        loadDocs();
+      } catch (err) {}
+    }
+
+    async function toggleDocStatus(id) {
+      try {
+        await api('/v0/management/portal/docs/toggle', {
+          method: 'POST',
+          body: JSON.stringify({ id })
+        });
+        toast('状态已切换');
+        loadDocs();
+      } catch (err) {}
+    }
+
+    async function deleteDocArticle(id, title) {
+      if (!confirm(`确定要彻底删除文档【${title}】吗？此操作不可逆！`)) return;
+      try {
+        await api('/v0/management/portal/docs/delete', {
+          method: 'POST',
+          body: JSON.stringify({ id })
+        });
+        toast('文档已删除');
+        loadDocs();
+      } catch (err) {}
+    }
+
+    function updateDocModalPreview() {
+      const textarea = document.getElementById('doc-content-md');
+      const preview = document.getElementById('doc-preview-pane');
+      if (!textarea || !preview) return;
+      const text = textarea.value || '';
+      try {
+        if (typeof marked !== 'undefined') {
+          marked.setOptions({ gfm: true, breaks: false });
+          preview.innerHTML = marked.parse(text);
+        } else {
+          preview.innerText = text;
+        }
+      } catch (e) {
+        preview.innerText = text;
+      }
+    }
+
+    function insertDocVar(varName) {
+      const textarea = document.getElementById('doc-content-md');
+      if (!textarea) return;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      textarea.value = text.substring(0, start) + varName + text.substring(end);
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + varName.length;
+      updateDocModalPreview();
+    }
+
+    function insertDocSnippet(type) {
+      let snippet = '';
+      if (type === 'table') {
+        snippet = `\n| 参数名 | 类型 | 必选 | 默认值 | 说明 |\n| :--- | :--- | :---: | :---: | :--- |\n| \`model\` | string | 是 | 无 | 模型标识符 |\n| \`prompt\` | string | 是 | 无 | 提示词文本 |\n`;
+      } else if (type === 'code') {
+        snippet = `\n\`\`\`json\n{\n  "model": "volcengine/doubao-seedance-2-5",\n  "prompt": "微距摄影：嫩绿树叶上的露珠，慢动作"\n}\n\`\`\`\n`;
+      } else if (type === 'alert') {
+        snippet = `\n> ⚠️ **重要提示**：\n> 生成的视频临时链接有效期为 24 小时，请及时下载并持久化转存至业务对象存储。\n`;
+      }
+      insertDocVar(snippet);
+    }
+
+    function safeParseJSON(val) {
+      if (val === null || val === undefined) return null;
+      if (typeof val === 'object') return val;
+      if (typeof val !== 'string') return null;
+      const trimmed = val.trim();
+      if (!trimmed) return null;
+      try {
+        return JSON.parse(trimmed);
+      } catch (e) {
+        try {
+          return JSON.parse(decodeHtml(trimmed));
+        } catch (e2) {
+          return null;
+        }
+      }
+    }
+
+    function formatTime(iso) {
+      if (!iso) return '-';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      return d.toLocaleString('zh-CN', { hour12: false });
+    }
+
+    function copyText(text) {
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        toast('已复制到剪贴板: ' + (text.length > 24 ? text.substring(0, 24) + '...' : text));
+      }).catch(() => {});
+    }
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        const search = document.querySelector('.tab-view.active .search-wrapper input');
+        if (search) search.focus();
+      } else if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+        document.querySelectorAll('.drawer-overlay.open').forEach(d => d.classList.remove('open'));
+      } else if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        refreshCurrentTab();
+      }
+    });
+
+    // Boot
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDashboard();
+    });
+  </script>
+</body>
+</html>

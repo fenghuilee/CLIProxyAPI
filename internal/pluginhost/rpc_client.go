@@ -9,9 +9,10 @@ import (
 	"net/http"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginabi"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
-	log "github.com/sirupsen/logrus"
 )
 
 type rpcPluginAdapter struct {
@@ -147,6 +148,21 @@ func registerRPCPlugin(ctx context.Context, host *Host, id string, client plugin
 	}
 	if resp.Capabilities.ManagementAPI {
 		plugin.Capabilities.ManagementAPI = adapter
+	}
+	if resp.Capabilities.ContentGenerationStore {
+		plugin.Capabilities.ContentGenerationStore = rpcContentGenerationStore{rpcPluginAdapter: adapter}
+	}
+	if resp.Capabilities.ContentGenerationMutator {
+		plugin.Capabilities.ContentGenerationMutator = rpcContentGenerationMutator{rpcPluginAdapter: adapter}
+	}
+	if resp.Capabilities.ContentGenerationDriver {
+		plugin.Capabilities.ContentGenerationDriver = rpcContentGenerationDriver{rpcPluginAdapter: adapter}
+	}
+	if resp.Capabilities.ContentGenerationObserver {
+		plugin.Capabilities.ContentGenerationObserver = rpcContentGenerationObserver{rpcPluginAdapter: adapter}
+	}
+	if resp.Capabilities.DatabaseProvider {
+		plugin.Capabilities.DatabaseProvider = rpcDatabaseProvider{rpcPluginAdapter: adapter}
 	}
 	return plugin, nil
 }
@@ -559,8 +575,12 @@ func (a rpcThinkingApplier) ApplyThinking(ctx context.Context, req pluginapi.Thi
 }
 
 func (a *rpcPluginAdapter) HandleUsage(ctx context.Context, record pluginapi.UsageRecord) {
-	if _, errCall := callPlugin[rpcEmptyResponse](ctx, a.client, pluginabi.MethodUsageHandle, record); errCall != nil {
-		log.Debugf("pluginhost: usage.handle to %s failed: %v", a.id, errCall)
+	callCtx := context.Background()
+	if ctx != nil {
+		callCtx = context.WithoutCancel(ctx)
+	}
+	if _, errCall := callPlugin[rpcEmptyResponse](callCtx, a.client, pluginabi.MethodUsageHandle, record); errCall != nil {
+		log.WithField("plugin_id", a.id).Debugf("pluginhost: usage.handle failed: %v", errCall)
 	}
 }
 
@@ -611,4 +631,24 @@ func httpResponseFromPlugin(resp pluginapi.ExecutorHTTPResponse, req *http.Reque
 		Body:       io.NopCloser(bytes.NewReader(bytes.Clone(resp.Body))),
 		Request:    req,
 	}
+}
+
+type rpcDatabaseProvider struct {
+	*rpcPluginAdapter
+}
+
+func (p rpcDatabaseProvider) Query(ctx context.Context, req pluginapi.DatabaseQueryRequest) (pluginapi.DatabaseQueryResponse, error) {
+	resp, errCall := callPlugin[pluginapi.DatabaseQueryResponse](ctx, p.client, pluginabi.MethodDatabaseProviderQuery, req)
+	if errCall != nil {
+		return pluginapi.DatabaseQueryResponse{}, errCall
+	}
+	return resp, nil
+}
+
+func (p rpcDatabaseProvider) Exec(ctx context.Context, req pluginapi.DatabaseExecRequest) (pluginapi.DatabaseExecResponse, error) {
+	resp, errCall := callPlugin[pluginapi.DatabaseExecResponse](ctx, p.client, pluginabi.MethodDatabaseProviderExec, req)
+	if errCall != nil {
+		return pluginapi.DatabaseExecResponse{}, errCall
+	}
+	return resp, nil
 }

@@ -173,6 +173,224 @@ func (l *testSymbolLookup) Call(ctx context.Context, method string, request []by
 		}
 		l.active.Capabilities.UsagePlugin.HandleUsage(ctx, record)
 		return marshalRPCResult(rpcEmptyResponse{})
+	case pluginabi.MethodContentGenerationStoreCreate:
+		if l.active.Capabilities.ContentGenerationStore == nil {
+			return nil, fmt.Errorf("missing content generation store")
+		}
+		var req rpcContentGenerationStoreCreateRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errCreate := l.active.Capabilities.ContentGenerationStore.Create(ctx, req.GenerationCreateRequest)
+		if errCreate != nil {
+			return nil, errCreate
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationStoreGet:
+		if l.active.Capabilities.ContentGenerationStore == nil {
+			return nil, fmt.Errorf("missing content generation store")
+		}
+		var req rpcContentGenerationStoreGetRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errGet := l.active.Capabilities.ContentGenerationStore.Get(ctx, req.GenerationGetRequest)
+		if errGet != nil {
+			return nil, errGet
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationStorePatch:
+		if l.active.Capabilities.ContentGenerationStore == nil {
+			return nil, fmt.Errorf("missing content generation store")
+		}
+		var req rpcContentGenerationStorePatchRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errPatch := l.active.Capabilities.ContentGenerationStore.Patch(ctx, req.GenerationPatchRequest)
+		if errPatch != nil {
+			return nil, errPatch
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationStoreClaim:
+		if l.active.Capabilities.ContentGenerationStore == nil {
+			return nil, fmt.Errorf("missing content generation store")
+		}
+		var req rpcContentGenerationStoreClaimRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errClaim := l.active.Capabilities.ContentGenerationStore.Claim(ctx, req.GenerationClaimRequest)
+		if errClaim != nil {
+			return nil, errClaim
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationStoreRelease:
+		if l.active.Capabilities.ContentGenerationStore == nil {
+			return nil, fmt.Errorf("missing content generation store")
+		}
+		var req rpcContentGenerationStoreReleaseRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		if errRelease := l.active.Capabilities.ContentGenerationStore.Release(ctx, req.GenerationReleaseRequest); errRelease != nil {
+			return nil, errRelease
+		}
+		return marshalRPCResult(rpcEmptyResponse{})
+	case pluginabi.MethodContentGenerationStoreDeleteExpired:
+		if l.active.Capabilities.ContentGenerationStore == nil {
+			return nil, fmt.Errorf("missing content generation store")
+		}
+		var req rpcContentGenerationStoreDeleteExpiredRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		deleted, errDel := l.active.Capabilities.ContentGenerationStore.DeleteExpired(ctx, req.GenerationDeleteExpiredRequest)
+		if errDel != nil {
+			return nil, errDel
+		}
+		return marshalRPCResult(rpcContentGenerationDeleteExpiredResponse{Deleted: deleted})
+	case pluginabi.MethodContentGenerationMutate:
+		if l.active.Capabilities.ContentGenerationMutator == nil {
+			return nil, fmt.Errorf("missing content generation mutator")
+		}
+		var req rpcContentGenerationMutateRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errMutate := l.active.Capabilities.ContentGenerationMutator.MutateContentGeneration(ctx, req.GenerationMutationRequest)
+		if errMutate != nil {
+			return nil, errMutate
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationEvent:
+		if l.active.Capabilities.ContentGenerationObserver == nil {
+			return nil, fmt.Errorf("missing content generation observer")
+		}
+		var req rpcContentGenerationEventRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		if errEvent := l.active.Capabilities.ContentGenerationObserver.OnContentGenerationEvent(ctx, req.Event); errEvent != nil {
+			return nil, errEvent
+		}
+		return marshalRPCResult(rpcEmptyResponse{})
+	case pluginabi.MethodContentGenerationDriverSupports:
+		if l.active.Capabilities.ContentGenerationDriver == nil {
+			return nil, fmt.Errorf("missing content generation driver")
+		}
+		var req rpcContentGenerationDriverSupportsRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errSupports := l.active.Capabilities.ContentGenerationDriver.Supports(ctx, req.GenerationSupportRequest)
+		if errSupports != nil {
+			return nil, errSupports
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationDriverPrepareSubmit:
+		if l.active.Capabilities.ContentGenerationDriver == nil {
+			return nil, fmt.Errorf("missing content generation driver")
+		}
+		var req rpcContentGenerationDriverPrepareSubmitRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errSubmit := l.active.Capabilities.ContentGenerationDriver.PrepareSubmit(ctx, req.GenerationSubmitInput)
+		if errSubmit != nil {
+			return nil, errSubmit
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationDriverParseSubmit:
+		if l.active.Capabilities.ContentGenerationDriver == nil {
+			return nil, fmt.Errorf("missing content generation driver")
+		}
+		var req rpcContentGenerationDriverParseSubmitRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errParse := l.active.Capabilities.ContentGenerationDriver.ParseSubmit(ctx, req.Response)
+		if errParse != nil {
+			return nil, errParse
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationDriverPreparePoll:
+		if l.active.Capabilities.ContentGenerationDriver == nil {
+			return nil, fmt.Errorf("missing content generation driver")
+		}
+		var req rpcContentGenerationDriverPreparePollRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errPoll := l.active.Capabilities.ContentGenerationDriver.PreparePoll(ctx, req.GenerationPollInput)
+		if errPoll != nil {
+			return nil, errPoll
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationDriverParsePoll:
+		if l.active.Capabilities.ContentGenerationDriver == nil {
+			return nil, fmt.Errorf("missing content generation driver")
+		}
+		var req rpcContentGenerationDriverParsePollRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errParse := l.active.Capabilities.ContentGenerationDriver.ParsePoll(ctx, req.Response)
+		if errParse != nil {
+			return nil, errParse
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationDriverPrepareCancel:
+		if l.active.Capabilities.ContentGenerationDriver == nil {
+			return nil, fmt.Errorf("missing content generation driver")
+		}
+		var req rpcContentGenerationDriverPrepareCancelRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errCancel := l.active.Capabilities.ContentGenerationDriver.PrepareCancel(ctx, req.GenerationCancelInput)
+		if errCancel != nil {
+			return nil, errCancel
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodContentGenerationDriverParseCancel:
+		if l.active.Capabilities.ContentGenerationDriver == nil {
+			return nil, fmt.Errorf("missing content generation driver")
+		}
+		var req rpcContentGenerationDriverParseCancelRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		if errParse := l.active.Capabilities.ContentGenerationDriver.ParseCancel(ctx, req.Response); errParse != nil {
+			return nil, errParse
+		}
+		return marshalRPCResult(rpcEmptyResponse{})
+	case pluginabi.MethodDatabaseProviderQuery:
+		if l.active.Capabilities.DatabaseProvider == nil {
+			return nil, fmt.Errorf("missing database provider")
+		}
+		var req pluginapi.DatabaseQueryRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errQuery := l.active.Capabilities.DatabaseProvider.Query(ctx, req)
+		if errQuery != nil {
+			return nil, errQuery
+		}
+		return marshalRPCResult(resp)
+	case pluginabi.MethodDatabaseProviderExec:
+		if l.active.Capabilities.DatabaseProvider == nil {
+			return nil, fmt.Errorf("missing database provider")
+		}
+		var req pluginapi.DatabaseExecRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		resp, errExec := l.active.Capabilities.DatabaseProvider.Exec(ctx, req)
+		if errExec != nil {
+			return nil, errExec
+		}
+		return marshalRPCResult(resp)
 	default:
 		return nil, fmt.Errorf("missing test method %s", method)
 	}
