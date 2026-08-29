@@ -405,9 +405,9 @@ func TestParseJSONOrRaw(t *testing.T) {
 
 func TestContentGenerationDTO_Serialization(t *testing.T) {
 	task := ContentGeneration{
-		GenerationID: "gen_123456",
-		Kind:         "video",
-		Model:        "volcengine/doubao-seedance-video",
+		GenerationID:  "gen_123456",
+		Kind:          "video",
+		Model:         "volcengine/doubao-seedance-video",
 		Status:        "succeeded",
 		Stage:         "completed",
 		Input:         `{"prompt": "sunset on the beach", "ratio": "16:9", "duration": 5}`,

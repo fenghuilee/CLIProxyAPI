@@ -32,6 +32,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"gopkg.in/yaml.v3"
 )
 
@@ -248,10 +249,13 @@ func NewServer(cfg *config.Config, authManager *auth.Manager, accessManager *sdk
 		s.enableKeepAlive(optionState.keepAliveTimeout, optionState.keepAliveOnTimeout)
 	}
 
-	// Create HTTP server
+	// Create HTTP server with h2c handler (supports HTTP/2 cleartext & HTTP/1.1 concurrently)
+	h2s := &http2.Server{}
+	h2cHandler := h2c.NewHandler(engine, h2s)
+
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		Handler: engine,
+		Handler: h2cHandler,
 	}
 
 	return s
@@ -267,42 +271,59 @@ func (s *Server) Start() error {
 		return fmt.Errorf("failed to start HTTP server: server not initialized")
 	}
 
-	addr := s.server.Addr
-	listener, errListen := net.Listen("tcp", addr)
-	if errListen != nil {
-		return fmt.Errorf("failed to start HTTP server: %v", errListen)
+	unixSockPath := ""
+	if s.cfg != nil {
+		unixSockPath = strings.TrimSpace(s.cfg.UnixSocket)
 	}
 
-	useTLS := s.cfg != nil && s.cfg.TLS.Enable
-	if useTLS {
-		certPath := strings.TrimSpace(s.cfg.TLS.Cert)
-		keyPath := strings.TrimSpace(s.cfg.TLS.Key)
-		if certPath == "" || keyPath == "" {
-			if errClose := listener.Close(); errClose != nil {
-				log.Errorf("failed to close listener after TLS validation failure: %v", errClose)
-			}
-			return fmt.Errorf("failed to start HTTPS server: tls.cert or tls.key is empty")
+	var listener net.Listener
+	var errListen error
+	if unixSockPath != "" {
+		_ = os.Remove(unixSockPath) // Clean up stale socket file if present
+		listener, errListen = net.Listen("unix", unixSockPath)
+		if errListen != nil {
+			return fmt.Errorf("failed to listen on unix socket (%s): %v", unixSockPath, errListen)
 		}
-		certPair, errLoad := tls.LoadX509KeyPair(certPath, keyPath)
-		if errLoad != nil {
-			if errClose := listener.Close(); errClose != nil {
-				log.Errorf("failed to close listener after TLS key pair load failure: %v", errClose)
-			}
-			return fmt.Errorf("failed to start HTTPS server: %v", errLoad)
+		_ = os.Chmod(unixSockPath, 0666) // Set permissive permissions
+		log.Infof("Starting API server on unix socket %s (h2c enabled)", unixSockPath)
+	} else {
+		addr := s.server.Addr
+		listener, errListen = net.Listen("tcp", addr)
+		if errListen != nil {
+			return fmt.Errorf("failed to start HTTP server: %v", errListen)
 		}
 
-		tlsConfig := &tls.Config{
-			Certificates: []tls.Certificate{certPair},
-			NextProtos:   []string{"h2", "http/1.1"},
+		useTLS := s.cfg != nil && s.cfg.TLS.Enable
+		if useTLS {
+			certPath := strings.TrimSpace(s.cfg.TLS.Cert)
+			keyPath := strings.TrimSpace(s.cfg.TLS.Key)
+			if certPath == "" || keyPath == "" {
+				if errClose := listener.Close(); errClose != nil {
+					log.Errorf("failed to close listener after TLS validation failure: %v", errClose)
+				}
+				return fmt.Errorf("failed to start HTTPS server: tls.cert or tls.key is empty")
+			}
+			certPair, errLoad := tls.LoadX509KeyPair(certPath, keyPath)
+			if errLoad != nil {
+				if errClose := listener.Close(); errClose != nil {
+					log.Errorf("failed to close listener after TLS key pair load failure: %v", errClose)
+				}
+				return fmt.Errorf("failed to start HTTPS server: %v", errLoad)
+			}
+
+			tlsConfig := &tls.Config{
+				Certificates: []tls.Certificate{certPair},
+				NextProtos:   []string{"h2", "http/1.1"},
+			}
+			s.server.TLSConfig = tlsConfig
+			if errHTTP2 := http2.ConfigureServer(s.server, &http2.Server{}); errHTTP2 != nil {
+				log.Warnf("failed to configure HTTP/2: %v", errHTTP2)
+			}
+			listener = tls.NewListener(listener, tlsConfig)
+			log.Debugf("Starting API server on %s with TLS", addr)
+		} else {
+			log.Debugf("Starting API server on %s", addr)
 		}
-		s.server.TLSConfig = tlsConfig
-		if errHTTP2 := http2.ConfigureServer(s.server, &http2.Server{}); errHTTP2 != nil {
-			log.Warnf("failed to configure HTTP/2: %v", errHTTP2)
-		}
-		listener = tls.NewListener(listener, tlsConfig)
-		log.Debugf("Starting API server on %s with TLS", addr)
-	} else {
-		log.Debugf("Starting API server on %s", addr)
 	}
 
 	httpListener := newMuxListener(listener.Addr(), 1024)
@@ -392,6 +413,9 @@ func (s *Server) Stop(ctx context.Context) error {
 	errShutdown := s.server.Shutdown(ctx)
 	if s.codexLiveHandler != nil {
 		s.codexLiveHandler.Close()
+	}
+	if s.cfg != nil && strings.TrimSpace(s.cfg.UnixSocket) != "" {
+		_ = os.Remove(strings.TrimSpace(s.cfg.UnixSocket))
 	}
 	if errShutdown != nil {
 		return fmt.Errorf("failed to shutdown HTTP server: %v", errShutdown)

@@ -5,6 +5,9 @@ host: ""
 # Server port
 port: 8317
 
+# Optional: Unix domain socket path (e.g. /tmp/cpa.sock) for zero-TCP-stack local IPC with h2c
+# unix-socket: ""
+
 # TLS settings for HTTPS. When enabled, the server listens with the provided certificate and key.
 tls:
   enable: false
