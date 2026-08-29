@@ -241,4 +241,77 @@ func TestMutatorEgressArtifactsAndOutput(t *testing.T) {
 	if art1.StorageProvider != "openai-compat" || art1.URI != "https://already-a-url.com/direct.png" {
 		t.Errorf("art1 untouched url failed: %+v", art1)
 	}
+
+	if art0.Metadata != nil && art0.Metadata["b64_json"] != nil {
+		t.Errorf("art0.Metadata should not contain b64_json after upload, got: %v", art0.Metadata["b64_json"])
+	}
+
+	if resp.Generation == nil || resp.Generation.Metadata == nil {
+		t.Fatalf("expected generation metadata to be populated")
+	}
+	tosMeta, ok := resp.Generation.Metadata["data-uri-to-tos"].(map[string]any)
+	if !ok || len(tosMeta["objects"].([]string)) == 0 {
+		t.Errorf("expected data-uri-to-tos objects in generation metadata, got: %v", resp.Generation.Metadata)
+	}
+}
+
+func TestMutatorEgressSerializedArtifactList(t *testing.T) {
+	rawImage := []byte("large-image-content-bytes")
+	b64Image := base64.StdEncoding.EncodeToString(rawImage)
+
+	uploader := newMockUploader()
+	cfg := DefaultConfig()
+	cfg.PublicBaseURL = "https://cdn.example.com"
+	mutator := NewMutator(cfg, uploader)
+
+	artifacts := []aigc.ContentGenerationArtifact{
+		{
+			ArtifactType:    "output_image",
+			StorageProvider: "inline",
+			URI:             "inline://sha256=abcdef",
+			Metadata: map[string]any{
+				"b64_json": b64Image,
+				"sha256":   "abcdef",
+			},
+		},
+	}
+	outJSON, _ := json.Marshal(artifacts)
+
+	gen := aigc.ContentGeneration{
+		ID:        "cg_test_serialized_output",
+		Model:     "gpt-image-2",
+		Artifacts: artifacts,
+		Output:    outJSON,
+	}
+
+	resp, err := mutator.MutateContentGeneration(context.Background(), aigc.GenerationMutationRequest{
+		Phase:      aigc.PhaseBeforeComplete,
+		Generation: gen,
+	})
+	if err != nil {
+		t.Fatalf("mutate egress error: %v", err)
+	}
+
+	if len(resp.Artifacts) != 1 {
+		t.Fatalf("expected 1 artifact, got %d", len(resp.Artifacts))
+	}
+	art := resp.Artifacts[0]
+	if art.StorageProvider != "tos" {
+		t.Errorf("expected storage_provider=tos, got %s", art.StorageProvider)
+	}
+	if art.Metadata != nil && art.Metadata["b64_json"] != nil {
+		t.Errorf("expected b64_json to be stripped from artifact metadata")
+	}
+
+	// Verify Output was updated to compact newArtifacts JSON without b64_json
+	outputStr := string(resp.Generation.Output)
+	if strings.Contains(outputStr, b64Image) {
+		t.Errorf("expected generation Output to not contain raw base64 data, got: %s", outputStr)
+	}
+	if !strings.Contains(outputStr, "https://cdn.example.com/aigc/outputs/") {
+		t.Errorf("expected generation Output to contain TOS URL, got: %s", outputStr)
+	}
+	if !strings.Contains(outputStr, `"storage_provider":"tos"`) {
+		t.Errorf("expected generation Output to contain storage_provider tos, got: %s", outputStr)
+	}
 }

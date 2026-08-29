@@ -215,13 +215,12 @@ func (c *Coordinator) AsyncSubmit(id string) {
 	}
 
 	patchSet := map[string]any{
-		"status":            status,
-		"stage":             stage,
-		"progress":          submitResult.Progress,
-		"provider":          driverPluginID,
-		"provider_request":  json.RawMessage(execReq.Body),
-		"provider_task_id":  submitResult.ProviderTaskID,
-		"provider_response": aigc.SanitizeProviderResponse(submitResult.ProviderResponse),
+		"status":           status,
+		"stage":            stage,
+		"progress":         submitResult.Progress,
+		"provider":         driverPluginID,
+		"provider_request": json.RawMessage(execReq.Body),
+		"provider_task_id": submitResult.ProviderTaskID,
 	}
 	if len(submitResult.Output) > 0 {
 		patchSet["output"] = submitResult.Output
@@ -246,8 +245,13 @@ func (c *Coordinator) AsyncSubmit(id string) {
 		if len(mutResp.Artifacts) > 0 {
 			artifactsToPersist = mutResp.Artifacts
 		}
-		if mutResp.Generation != nil && len(mutResp.Generation.Output) > 0 {
-			patchSet["output"] = mutResp.Generation.Output
+		if mutResp.Generation != nil {
+			if len(mutResp.Generation.Output) > 0 {
+				patchSet["output"] = mutResp.Generation.Output
+			}
+			if len(mutResp.Generation.Metadata) > 0 {
+				patchSet["metadata"] = mutResp.Generation.Metadata
+			}
 		}
 	}
 
@@ -409,9 +413,6 @@ func (c *Coordinator) pollGeneration(ctx context.Context, store aigc.ContentGene
 	if pollResult.Stage != "" && pollResult.Stage != gen.Stage {
 		patchSet["stage"] = pollResult.Stage
 	}
-	if len(pollResult.ProviderResponse) > 0 {
-		patchSet["provider_response"] = aigc.SanitizeProviderResponse(pollResult.ProviderResponse)
-	}
 	if len(pollResult.Output) > 0 {
 		patchSet["output"] = pollResult.Output
 	}
@@ -435,8 +436,13 @@ func (c *Coordinator) pollGeneration(ctx context.Context, store aigc.ContentGene
 		if len(mutResp.Artifacts) > 0 {
 			artifactsToPersist = mutResp.Artifacts
 		}
-		if mutResp.Generation != nil && len(mutResp.Generation.Output) > 0 {
-			patchSet["output"] = mutResp.Generation.Output
+		if mutResp.Generation != nil {
+			if len(mutResp.Generation.Output) > 0 {
+				patchSet["output"] = mutResp.Generation.Output
+			}
+			if len(mutResp.Generation.Metadata) > 0 {
+				patchSet["metadata"] = mutResp.Generation.Metadata
+			}
 		}
 	}
 

@@ -183,7 +183,7 @@ func BuildCanonicalFromRawInput(body []byte) CanonicalContext {
 
 // ExtractCanonical retrieves canonical context:
 // 1. From gen.Metadata["canonical"] (injected by BFF via X-Canonical-Body header)
-// 2. Falls back to parsing gen.PreparedInput or gen.Input
+// 2. Falls back to parsing gen.Input
 func ExtractCanonical(gen aigc.ContentGeneration) CanonicalContext {
 	if gen.Metadata != nil {
 		if rawCanon, ok := gen.Metadata["canonical"]; ok && rawCanon != nil {
@@ -209,8 +209,5 @@ func ExtractCanonical(gen aigc.ContentGeneration) CanonicalContext {
 	}
 
 	inputBytes := gen.Input
-	if len(gen.PreparedInput) > 0 {
-		inputBytes = gen.PreparedInput
-	}
 	return BuildCanonicalFromRawInput(inputBytes)
 }

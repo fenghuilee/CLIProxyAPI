@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginabi"
+	"github.com/shopspring/decimal"
 )
 
 func TestPluginRegistration(t *testing.T) {
@@ -202,12 +203,28 @@ func TestModelGroupManagementRoutesRegistration(t *testing.T) {
 
 	hasModelGroupsRoute := false
 	hasUserGroupRoute := false
+	hasAvailableModelsRoute := false
+	hasModelGroupCreateRoute := false
+	hasModelGroupUpdateRoute := false
+	hasModelGroupDeleteRoute := false
 	for _, r := range mgtReg.Routes {
 		if r.Path == "/v0/management/portal/model-groups" {
 			hasModelGroupsRoute = true
 		}
 		if r.Path == "/v0/management/portal/users/group" {
 			hasUserGroupRoute = true
+		}
+		if r.Path == "/v0/management/portal/available-models" {
+			hasAvailableModelsRoute = true
+		}
+		if r.Path == "/v0/management/portal/model-groups/create" {
+			hasModelGroupCreateRoute = true
+		}
+		if r.Path == "/v0/management/portal/model-groups/update" {
+			hasModelGroupUpdateRoute = true
+		}
+		if r.Path == "/v0/management/portal/model-groups/delete" {
+			hasModelGroupDeleteRoute = true
 		}
 	}
 
@@ -216,6 +233,18 @@ func TestModelGroupManagementRoutesRegistration(t *testing.T) {
 	}
 	if !hasUserGroupRoute {
 		t.Errorf("expected /v0/management/portal/users/group route in management registration")
+	}
+	if !hasAvailableModelsRoute {
+		t.Errorf("expected /v0/management/portal/available-models route in management registration")
+	}
+	if !hasModelGroupCreateRoute {
+		t.Errorf("expected /v0/management/portal/model-groups/create route in management registration")
+	}
+	if !hasModelGroupUpdateRoute {
+		t.Errorf("expected /v0/management/portal/model-groups/update route in management registration")
+	}
+	if !hasModelGroupDeleteRoute {
+		t.Errorf("expected /v0/management/portal/model-groups/delete route in management registration")
 	}
 }
 
@@ -379,11 +408,14 @@ func TestContentGenerationDTO_Serialization(t *testing.T) {
 		GenerationID: "gen_123456",
 		Kind:         "video",
 		Model:        "volcengine/doubao-seedance-video",
-		Status:       "succeeded",
-		Stage:        "completed",
-		Input:        `{"prompt": "sunset on the beach", "ratio": "16:9", "duration": 5}`,
-		Output:       `{"video_url": "https://example.com/video.mp4"}`,
-		BillingUsage: `{"quota": "0.50000000", "duration": 4.2}`,
+		Status:        "succeeded",
+		Stage:         "completed",
+		Input:         `{"prompt": "sunset on the beach", "ratio": "16:9", "duration": 5}`,
+		Output:        `{"video_url": "https://example.com/video.mp4"}`,
+		BillingType:   "dynamic_call",
+		BillingStatus: "settled",
+		Cost:          decimal.NewFromFloat(0.5),
+		DurationMs:    4200,
 	}
 	dto := task.ToDTO()
 
@@ -407,9 +439,8 @@ func TestContentGenerationDTO_Serialization(t *testing.T) {
 		t.Fatalf("output was not serialized as native JSON object: %#v", parsed["output"])
 	}
 
-	billingMap, ok := parsed["billing_usage"].(map[string]any)
-	if !ok || billingMap["quota"] != "0.50000000" {
-		t.Fatalf("billing_usage was not serialized as native JSON object: %#v", parsed["billing_usage"])
+	if parsed["billing_status"] != "settled" {
+		t.Fatalf("billing_status = %v, want settled", parsed["billing_status"])
 	}
 }
 

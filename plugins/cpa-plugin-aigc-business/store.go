@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/aigc"
+	"github.com/tidwall/gjson"
 )
 
 // DBBridge defines database interaction methods provided by the host.
@@ -57,24 +58,43 @@ func (s *Store) Create(ctx context.Context, req aigc.GenerationCreateRequest) (a
 		}
 	}
 
-	var billingUsageStr *string
-	if len(draft.BillingUsage) > 0 {
-		str := string(draft.BillingUsage)
-		billingUsageStr = &str
+	prompt := draft.Prompt
+	if prompt == "" && len(draft.Input) > 0 {
+		prompt = gjson.GetBytes(draft.Input, "prompt").String()
+		if prompt == "" {
+			prompt = gjson.GetBytes(draft.Input, "text").String()
+		}
+	}
+	var promptVal *string
+	if prompt != "" {
+		promptVal = &prompt
+	}
+
+	bType := draft.BillingType
+	if bType == "" {
+		bType = "fixed"
+	}
+	bStatus := draft.BillingStatus
+	if bStatus == "" {
+		bStatus = "unbilled"
+	}
+	costVal := draft.Cost
+	if costVal == "" {
+		costVal = "0.00000000"
 	}
 
 	now := time.Now()
 	query := `
 INSERT INTO content_generations (
-    generation_id, request_id, kind, model, status, stage, progress, revision,
-    api_key, client_ip, input, prepared_input, provider_request, provider_response,
-    output, provider, provider_task_id, auth_id, error_code, error_message,
-    metadata, billing_usage, worker_id, lease_until, created_at, updated_at, expires_at
+    generation_id, request_id, user_id, kind, model, prompt, status, stage, progress, revision,
+    api_key, client_ip, input, provider_request,
+    output, provider, provider_task_id, error_code, error_message, duration_ms,
+    metadata, billing_type, billing_status, cost, worker_id, lease_until, created_at, updated_at, completed_at, expires_at
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, 0, 1,
-    ?, ?, ?, NULL, NULL, NULL,
+    ?, ?, ?, ?, ?, ?, ?, ?, 0, 1,
+    ?, ?, ?, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL,
-    ?, ?, NULL, NULL, ?, ?, NULL
+    ?, ?, ?, ?, NULL, NULL, ?, ?, NULL, NULL
 )`
 
 	var reqIDVal *string
@@ -83,9 +103,9 @@ INSERT INTO content_generations (
 	}
 
 	_, _, errExec := s.bridge.Exec(ctx, query,
-		draft.ID, reqIDVal, string(draft.Kind), draft.Model, string(status), string(stage),
+		draft.ID, reqIDVal, draft.UserID, string(draft.Kind), draft.Model, promptVal, string(status), string(stage),
 		draft.APIKey, draft.ClientIP, string(draft.Input),
-		metadataStr, billingUsageStr, now, now,
+		metadataStr, bType, bStatus, costVal, now, now,
 	)
 	if errExec != nil {
 		return aigc.ContentGeneration{}, fmt.Errorf("insert generation: %w", errExec)

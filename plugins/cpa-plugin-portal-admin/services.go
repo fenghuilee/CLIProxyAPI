@@ -224,6 +224,42 @@ func (s *AdminService) UpdateUserGroup(ctx context.Context, id uint64, groupName
 // 2.1 Model Groups Management
 // -----------------------------------------------------------------------------
 
+// AvailableModelItem represents a model registered or discovered in the platform.
+type AvailableModelItem struct {
+	Model       string `json:"model"`
+	BillingType string `json:"billing_type,omitempty"`
+	Status      int8   `json:"status"`
+}
+
+func (s *AdminService) ListAvailableModels(ctx context.Context) ([]AvailableModelItem, error) {
+	var items []AvailableModelItem
+	if s.db.Migrator().HasTable("model_billing_rules") {
+		_ = s.db.WithContext(ctx).Table("model_billing_rules").
+			Select("model, billing_type, status").
+			Order("model ASC").
+			Scan(&items).Error
+	}
+	if len(items) == 0 {
+		var models []string
+		if s.db.Migrator().HasTable("usage_statistics_hourly") {
+			_ = s.db.WithContext(ctx).Table("usage_statistics_hourly").Distinct("model").Pluck("model", &models).Error
+		}
+		seen := make(map[string]bool)
+		for _, m := range models {
+			m = strings.TrimSpace(m)
+			if m != "" && !seen[m] {
+				seen[m] = true
+				items = append(items, AvailableModelItem{
+					Model:       m,
+					BillingType: "per_token",
+					Status:      1,
+				})
+			}
+		}
+	}
+	return items, nil
+}
+
 func (s *AdminService) ListModelGroups(ctx context.Context) ([]ModelGroup, error) {
 	var groups []ModelGroup
 	err := s.db.WithContext(ctx).Order("id ASC").Find(&groups).Error
@@ -673,8 +709,8 @@ func (s *AdminService) ListAIGCTasks(ctx context.Context, filter AIGCTaskFilter)
 	var total int64
 
 	tx := s.db.WithContext(ctx).Table("content_generations cg").
-		Joins("LEFT JOIN api_keys k ON cg.api_key = k.api_key").
-		Joins("LEFT JOIN users u ON k.user_id = u.id")
+		Joins("LEFT JOIN users u ON (cg.user_id = u.id OR (cg.user_id = 0 AND cg.api_key = u.id))").
+		Joins("LEFT JOIN api_keys k ON cg.api_key = k.api_key")
 
 	if search := strings.TrimSpace(filter.Search); search != "" {
 		tx = tx.Where("cg.generation_id LIKE ? OR u.username LIKE ? OR cg.api_key LIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%")
@@ -712,7 +748,7 @@ func (s *AdminService) ListAIGCTasks(ctx context.Context, filter AIGCTaskFilter)
 		limit = 20
 	}
 
-	err := tx.Select("cg.generation_id, cg.request_id, cg.kind, cg.model, cg.status, cg.stage, cg.progress, cg.revision, cg.api_key, cg.client_ip, cg.input, cg.output, cg.provider, cg.provider_task_id, cg.error_code, cg.error_message, cg.billing_usage, cg.created_at, cg.updated_at, u.username").
+	err := tx.Select("cg.generation_id, cg.request_id, cg.user_id, cg.kind, cg.model, cg.prompt, cg.status, cg.stage, cg.progress, cg.revision, cg.api_key, cg.client_ip, cg.input, cg.output, cg.provider, cg.provider_task_id, cg.error_code, cg.error_message, cg.billing_type, cg.billing_status, cg.cost, cg.duration_ms, cg.created_at, cg.updated_at, cg.completed_at, COALESCE(u.username, '') as username").
 		Order("cg.created_at DESC").
 		Offset(filter.Offset).
 		Limit(limit).

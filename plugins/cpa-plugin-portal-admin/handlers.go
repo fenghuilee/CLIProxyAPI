@@ -180,6 +180,14 @@ func (h *Handler) Dispatch(ctx context.Context, req managementRequest) (manageme
 	}
 
 	// 2.1 Model Groups Endpoints
+	if path == "/v0/management/portal/available-models" && method == http.MethodGet {
+		models, err := h.adminSvc.ListAvailableModels(ctx)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "db_error", err.Error())
+		}
+		return jsonResponse(http.StatusOK, map[string]any{"items": models})
+	}
+
 	if path == "/v0/management/portal/model-groups" {
 		if method == http.MethodGet {
 			groups, err := h.adminSvc.ListModelGroups(ctx)
@@ -194,11 +202,23 @@ func (h *Handler) Dispatch(ctx context.Context, req managementRequest) (manageme
 		}
 		if method == http.MethodPost {
 			var body struct {
+				ID          uint64          `json:"id"`
 				Name        string          `json:"name"`
 				DisplayName string          `json:"display_name"`
 				Models      json.RawMessage `json:"models"`
+				Status      int8            `json:"status"`
 			}
 			_ = json.Unmarshal(req.Body, &body)
+			if body.ID > 0 {
+				modelsStr := ""
+				if len(body.Models) > 0 {
+					modelsStr = normalizeModelsInput(body.Models)
+				}
+				if err := h.adminSvc.UpdateModelGroup(ctx, body.ID, body.DisplayName, modelsStr, body.Status); err != nil {
+					return errorResponse(http.StatusInternalServerError, "db_error", err.Error())
+				}
+				return jsonResponse(http.StatusOK, map[string]any{"status": "ok"})
+			}
 			modelsStr := normalizeModelsInput(body.Models)
 			group, err := h.adminSvc.CreateModelGroup(ctx, body.Name, body.DisplayName, modelsStr)
 			if err != nil {
@@ -206,6 +226,66 @@ func (h *Handler) Dispatch(ctx context.Context, req managementRequest) (manageme
 			}
 			return jsonResponse(http.StatusOK, map[string]any{"status": "ok", "group": group.ToDTO()})
 		}
+	}
+
+	if path == "/v0/management/portal/model-groups/create" && method == http.MethodPost {
+		var body struct {
+			Name        string          `json:"name"`
+			DisplayName string          `json:"display_name"`
+			Models      json.RawMessage `json:"models"`
+		}
+		_ = json.Unmarshal(req.Body, &body)
+		modelsStr := normalizeModelsInput(body.Models)
+		group, err := h.adminSvc.CreateModelGroup(ctx, body.Name, body.DisplayName, modelsStr)
+		if err != nil {
+			return errorResponse(http.StatusBadRequest, "create_group_failed", err.Error())
+		}
+		return jsonResponse(http.StatusOK, map[string]any{"status": "ok", "group": group.ToDTO()})
+	}
+
+	if path == "/v0/management/portal/model-groups/update" && method == http.MethodPost {
+		var body struct {
+			ID          uint64          `json:"id"`
+			DisplayName string          `json:"display_name"`
+			Models      json.RawMessage `json:"models"`
+			Status      int8            `json:"status"`
+		}
+		_ = json.Unmarshal(req.Body, &body)
+		if body.ID == 0 {
+			if idStr := query.Get("id"); idStr != "" {
+				body.ID, _ = strconv.ParseUint(idStr, 10, 64)
+			}
+		}
+		if body.ID == 0 {
+			return errorResponse(http.StatusBadRequest, "invalid_id", "group id is required")
+		}
+		modelsStr := ""
+		if len(body.Models) > 0 {
+			modelsStr = normalizeModelsInput(body.Models)
+		}
+		if err := h.adminSvc.UpdateModelGroup(ctx, body.ID, body.DisplayName, modelsStr, body.Status); err != nil {
+			return errorResponse(http.StatusInternalServerError, "db_error", err.Error())
+		}
+		return jsonResponse(http.StatusOK, map[string]any{"status": "ok"})
+	}
+
+	if path == "/v0/management/portal/model-groups/delete" && method == http.MethodPost {
+		var body struct {
+			ID uint64 `json:"id"`
+		}
+		_ = json.Unmarshal(req.Body, &body)
+		if body.ID == 0 {
+			if idStr := query.Get("id"); idStr != "" {
+				body.ID, _ = strconv.ParseUint(idStr, 10, 64)
+			}
+		}
+		if body.ID == 0 {
+			return errorResponse(http.StatusBadRequest, "invalid_id", "group id is required")
+		}
+		if err := h.adminSvc.DeleteModelGroup(ctx, body.ID); err != nil {
+			return errorResponse(http.StatusBadRequest, "delete_group_failed", err.Error())
+		}
+		return jsonResponse(http.StatusOK, map[string]any{"status": "ok"})
 	}
 
 	if strings.HasPrefix(path, "/v0/management/portal/model-groups/") {

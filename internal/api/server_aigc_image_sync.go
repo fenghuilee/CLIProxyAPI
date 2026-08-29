@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -115,9 +116,19 @@ func (s *Server) handleAIGCSync(c *gin.Context) {
 
 	callerAPIKey := strings.TrimSpace(c.GetString("userApiKey"))
 	clientIP := c.ClientIP()
+	reqID := strings.TrimSpace(c.GetHeader("X-Request-ID"))
+	if reqID == "" {
+		reqID = strings.TrimSpace(c.GetString("request_id"))
+	}
+	var userID uint64
+	if uStr := strings.TrimSpace(c.GetHeader("X-User-ID")); uStr != "" {
+		userID, _ = strconv.ParseUint(uStr, 10, 64)
+	}
 
 	// Execute through SyncPipeline
 	result, execErr := pipeline.Execute(c.Request.Context(), internalaigc.SyncImageRequest{
+		RequestID:     reqID,
+		UserID:        userID,
 		Model:         model,
 		Input:         bodyBytes,
 		DesiredFormat: desiredFormat,
@@ -220,6 +231,10 @@ func (s *Server) handleAIGCSync(c *gin.Context) {
 		Size:         gjson.GetBytes(bodyBytes, "size").String(),
 		Model:        result.Model,
 		Usage:        normUsage,
+	}
+
+	if result.ID != "" {
+		c.Header("X-Generation-ID", result.ID)
 	}
 
 	c.JSON(http.StatusOK, respObj)

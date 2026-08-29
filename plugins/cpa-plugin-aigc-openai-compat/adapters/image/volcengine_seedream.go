@@ -56,9 +56,6 @@ func (a *VolcengineSeedreamAdapter) Supports(ctx context.Context, req aigc.Gener
 func (a *VolcengineSeedreamAdapter) PrepareSubmit(ctx context.Context, input aigc.GenerationSubmitInput) (aigc.GenerationExecutionRequest, error) {
 	gen := input.Generation
 	inputBytes := gen.Input
-	if len(gen.PreparedInput) > 0 {
-		inputBytes = gen.PreparedInput
-	}
 
 	model := gen.Model
 	if strings.HasPrefix(model, "volcengine/") {
@@ -150,7 +147,6 @@ func (a *VolcengineSeedreamAdapter) PrepareSubmit(ctx context.Context, input aig
 		Header:   header,
 		Body:     bodyBytes,
 		Model:    gen.Model,
-		AuthID:   gen.AuthID,
 		Metadata: map[string]any{"provider": "volcengine-seedream"},
 	}, nil
 }
@@ -196,7 +192,6 @@ func (a *VolcengineSeedreamAdapter) PreparePoll(ctx context.Context, input aigc.
 		Method:   http.MethodGet,
 		URL:      fmt.Sprintf("/contents/generations/tasks/%s", taskID),
 		Model:    input.Generation.Model,
-		AuthID:   input.Generation.AuthID,
 		Metadata: map[string]any{"provider": "volcengine-seedream", "task_id": taskID},
 	}, nil
 }
@@ -236,7 +231,6 @@ func (a *VolcengineSeedreamAdapter) PrepareCancel(ctx context.Context, input aig
 		Method: http.MethodPost,
 		URL:    fmt.Sprintf("/contents/generations/tasks/%s/cancel", taskID),
 		Model:  input.Generation.Model,
-		AuthID: input.Generation.AuthID,
 	}, nil
 }
 

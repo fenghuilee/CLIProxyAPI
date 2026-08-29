@@ -1020,6 +1020,124 @@
       color: var(--text-1);
     }
 
+    /* Model Group Rule Tags & Visual Builder */
+    .rule-tag-container {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      min-height: 78px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      transition: border-color 0.15s ease;
+      cursor: text;
+    }
+    .rule-tag-container:focus-within {
+      border-color: var(--border-focus);
+    }
+    .rule-tag-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-active);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-1);
+      line-height: 1.2;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+    .rule-tag-item.is-wildcard-all {
+      border-color: rgba(99, 102, 241, 0.4);
+      color: var(--text-1);
+    }
+    .rule-tag-remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      cursor: pointer;
+      color: var(--text-3);
+      font-size: 13px;
+      line-height: 1;
+      transition: all 0.15s ease;
+    }
+    .rule-tag-remove:hover {
+      background: var(--danger-subtle);
+      color: var(--danger);
+    }
+    .rule-input-inline-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1 1 200px;
+      min-width: 160px;
+    }
+    .rule-input-inline {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--text-1);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 4px 2px;
+    }
+    .rule-input-inline::placeholder {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+    .system-models-panel {
+      margin-top: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+    }
+    .system-models-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .system-model-chip {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-hover);
+      color: var(--text-2);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .system-model-chip:hover {
+      border-color: var(--text-3);
+      color: var(--text-1);
+    }
+    .system-model-chip.selected {
+      background: var(--surface-active);
+      border-color: var(--accent);
+      color: var(--text-1);
+      font-weight: 500;
+    }
+    .system-model-chip.covered {
+      background: var(--surface-hover);
+      border-color: rgba(99, 102, 241, 0.35);
+      color: var(--text-1);
+    }
+
     /* Toasts */
     .toast-stack {
       position: fixed;
@@ -2219,7 +2337,7 @@
 
   <!-- Model Group Modal -->
   <div id="modal-model-group" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-model-group')">
-    <div class="modal-dialog" style="max-width: 560px;">
+    <div class="modal-dialog" style="max-width: 620px;">
       <div class="modal-header">
         <span id="model-group-modal-title">模型分组配置</span>
         <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-model-group')">
@@ -2228,21 +2346,80 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="model-group-id">
-        <div class="form-row">
-          <label class="form-label">分组标识 (唯一英文，如 video, default, vip)</label>
-          <input type="text" id="model-group-name" class="input-control font-mono" style="width: 100%;" placeholder="例如 video">
-        </div>
-        <div class="form-row">
-          <label class="form-label">展示名称</label>
-          <input type="text" id="model-group-display-name" class="input-control" style="width: 100%;" placeholder="例如 视频生成专用组">
-        </div>
-        <div class="form-row">
-          <label class="form-label">允许模型规则列表 (JSON 数组格式，支持通配符 *)</label>
-          <textarea id="model-group-models" class="input-control font-mono" style="width: 100%; height: 110px;" placeholder='["volcengine/doubao-seedance-*", "sora-2", "grok-imagine-video*"]'></textarea>
-          <div style="font-size: 11px; color: var(--text-3); margin-top: 4px;">
-            示例: <code>["*"]</code> (全部开放), <code>["gpt-4o*", "claude-3-5*"]</code>, <code>["volcengine/*"]</code>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-row">
+            <label class="form-label">分组标识 (唯一英文)</label>
+            <input type="text" id="model-group-name" class="input-control font-mono" style="width: 100%;" placeholder="例如 video, vip, default">
+          </div>
+          <div class="form-row">
+            <label class="form-label">展示名称</label>
+            <input type="text" id="model-group-display-name" class="input-control" style="width: 100%;" placeholder="例如 视频生成专用组">
           </div>
         </div>
+
+        <div class="form-row">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" style="margin-bottom: 0;">允许模型规则 (Models)</label>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-toggle-model-group-mode" onclick="toggleModelGroupEditorMode()" style="font-size: 11px; padding: 2px 8px; color: var(--accent);">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 3px; vertical-align: middle;"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              切换为 JSON 模式
+            </button>
+          </div>
+
+          <!-- 1. Visual Mode Editor -->
+          <div id="model-group-visual-mode">
+            <!-- Presets Row -->
+            <div style="margin-bottom: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 11px; color: var(--text-3);">常用通配符：</span>
+                <span style="font-size: 11px; color: var(--accent); cursor: pointer;" onclick="clearAllModelGroupRules()">清空已选</span>
+              </div>
+              <div class="presets-row" style="flex-wrap: wrap; gap: 4px; margin-top: 0;">
+                <span class="preset-chip" onclick="applyModelGroupPreset('*')">* (全部)</span>
+                <span class="preset-chip" onclick="applyModelGroupPreset('volcengine/*')">volcengine/*</span>
+                <span class="preset-chip" onclick="applyModelGroupPreset('alibaba-cn/*')">alibaba-cn/*</span>
+                <span class="preset-chip" onclick="applyModelGroupPreset('deepseek/*')">deepseek/*</span>
+                <span class="preset-chip" onclick="applyModelGroupPreset('gpt-*')">gpt-*</span>
+                <span class="preset-chip" onclick="applyModelGroupPreset('claude-*')">claude-*</span>
+                <span class="preset-chip" onclick="applyModelGroupPreset('volcengine/doubao-seedance-*')">doubao-seedance-*</span>
+                <span class="preset-chip" onclick="applyModelGroupPreset('volcengine/doubao-seedream-*')">doubao-seedream-*</span>
+              </div>
+            </div>
+
+            <!-- Active Tag Container with Inline Input -->
+            <div class="rule-tag-container" id="model-group-tags-container" onclick="focusModelGroupInlineInput(event)">
+              <div id="model-group-tags-list" style="display: contents;"></div>
+              <div class="rule-input-inline-wrap">
+                <input type="text" id="model-group-inline-input" class="rule-input-inline font-mono" placeholder="输入模型名或通配符，按回车添加..." onkeydown="handleModelGroupInputKey(event)" onpaste="handleModelGroupPaste(event)">
+                <button type="button" class="btn btn-default btn-sm" style="padding: 2px 8px; font-size: 11px;" onclick="addModelGroupRuleFromInput()">+ 添加</button>
+              </div>
+            </div>
+            <div style="font-size: 11px; color: var(--text-3); margin-top: 4px; display: flex; justify-content: space-between;">
+              <span>支持通配符（如 <code>gpt-*</code>、<code>*</code>），支持直接粘贴多行或逗号分隔列表</span>
+              <span id="model-group-rules-count" style="font-weight: 500; color: var(--text-2);">已配置 0 条规则</span>
+            </div>
+
+            <!-- System Registered Models Quick Picker -->
+            <div class="system-models-panel">
+              <div class="system-models-panel-header">
+                <span style="font-size: 11.5px; font-weight: 600; color: var(--text-2);">已配置模型库 (点击添加/移除)</span>
+                <input type="text" id="system-models-search" class="input-control" style="font-size: 11px; padding: 2px 8px; width: 140px;" placeholder="筛选模型..." oninput="filterSystemModelsPicker()">
+              </div>
+              <div id="system-models-list" style="display: flex; flex-wrap: wrap; gap: 5px; max-height: 110px; overflow-y: auto; padding-right: 4px;">
+                <span style="color: var(--text-3); font-size: 11px;">加载中...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. JSON Raw Mode Editor (Hidden by default) -->
+          <div id="model-group-json-mode" style="display: none;">
+            <textarea id="model-group-models" class="input-control font-mono" style="width: 100%; height: 140px;" placeholder='["*"]'></textarea>
+            <div style="font-size: 11px; color: var(--text-3); margin-top: 4px;">
+              高级模式：直接编辑 JSON 数组，例如 <code>["volcengine/*", "sora-2", "gpt-4o*"]</code>
+            </div>
+          </div>
+        </div>
+
         <div class="form-row">
           <label class="form-label">状态</label>
           <select id="model-group-status" class="select-control" style="width: 100%;">
@@ -2686,8 +2863,265 @@
     }
 
     let cachedModelGroups = [];
+    let cachedAvailableModels = [];
+    let currentModelGroupRules = [];
+    let isModelGroupJsonMode = false;
 
     // 2.1 Model Groups
+    async function loadAvailableModels() {
+      if (cachedAvailableModels.length > 0) return cachedAvailableModels;
+      try {
+        const data = await api('/v0/management/portal/available-models');
+        cachedAvailableModels = (data && data.items) || [];
+      } catch (err) {
+        cachedAvailableModels = [];
+      }
+      return cachedAvailableModels;
+    }
+
+    function isModelMatchedByRule(rule, modelName) {
+      if (!rule || !modelName) return false;
+      const r = rule.trim().toLowerCase();
+      const m = modelName.trim().toLowerCase();
+      if (r === '*' || r === m) return true;
+      if (r.endsWith('*')) {
+        const prefix = r.slice(0, -1);
+        if (m.startsWith(prefix)) return true;
+        if (m.includes('/')) {
+          const shortName = m.split('/').pop();
+          if (shortName.startsWith(prefix)) return true;
+        }
+      }
+      if (r.startsWith('*')) {
+        const suffix = r.slice(1);
+        if (m.endsWith(suffix)) return true;
+      }
+      if (r.includes('/')) {
+        const rShort = r.split('/').pop();
+        if (rShort === m || (rShort.endsWith('*') && m.startsWith(rShort.slice(0, -1)))) return true;
+      }
+      return false;
+    }
+
+    function renderModelGroupRules() {
+      const listEl = document.getElementById('model-group-tags-list');
+      const countEl = document.getElementById('model-group-rules-count');
+      if (!listEl) return;
+
+      if (!currentModelGroupRules || currentModelGroupRules.length === 0) {
+        listEl.innerHTML = '<span style="color: var(--text-3); font-size: 11px; padding: 2px 4px;">未配置规则（保存将默认开放全部 *）</span>';
+        if (countEl) countEl.innerText = '未配置规则 (默认开放全部)';
+      } else {
+        const hasWildcardAll = currentModelGroupRules.includes('*');
+        listEl.innerHTML = currentModelGroupRules.map((rule, idx) => {
+          const isAll = rule === '*';
+          return `
+            <div class="rule-tag-item ${isAll ? 'is-wildcard-all' : ''}">
+              <code>${escapeHtml(rule)}</code>
+              <span class="rule-tag-remove" onclick="event.stopPropagation(); removeModelGroupRule(${idx})" title="移除该规则">×</span>
+            </div>
+          `;
+        }).join('');
+        if (countEl) {
+          countEl.innerText = `已配置 ${currentModelGroupRules.length} 条规则`;
+        }
+      }
+
+      renderSystemModelsPicker();
+    }
+
+    function focusModelGroupInlineInput(e) {
+      if (e.target && (e.target.classList.contains('rule-tag-remove') || e.target.tagName === 'BUTTON')) return;
+      const input = document.getElementById('model-group-inline-input');
+      if (input) input.focus();
+    }
+
+    function addModelGroupRule(ruleStr) {
+      if (!ruleStr) return;
+      let clean = ruleStr.trim().replace(/^["'`\[]+|["'`\],]+$/g, '').trim();
+      if (!clean) return;
+      const exists = currentModelGroupRules.some(r => r.toLowerCase() === clean.toLowerCase());
+      if (!exists) {
+        currentModelGroupRules.push(clean);
+        renderModelGroupRules();
+      }
+    }
+
+    function parseTokensFromText(text) {
+      if (!text) return [];
+      text = text.trim();
+      if (text.startsWith('[') && text.endsWith(']')) {
+        try {
+          const arr = JSON.parse(text);
+          if (Array.isArray(arr)) {
+            return arr.map(x => String(x).trim()).filter(Boolean);
+          }
+        } catch(e) {}
+      }
+      return text.split(/[\r\n,;\s]+/).map(s => s.replace(/^["'`\[]+|["'`\],]+$/g, '').trim()).filter(Boolean);
+    }
+
+    function addModelGroupRuleFromInput() {
+      const input = document.getElementById('model-group-inline-input');
+      if (!input) return;
+      const val = input.value.trim();
+      if (!val) return;
+      const tokens = parseTokensFromText(val);
+      tokens.forEach(addModelGroupRule);
+      input.value = '';
+      renderModelGroupRules();
+    }
+
+    function handleModelGroupInputKey(event) {
+      if (event.key === 'Enter' || event.key === ',') {
+        event.preventDefault();
+        addModelGroupRuleFromInput();
+      } else if (event.key === 'Backspace' && !event.target.value && currentModelGroupRules.length > 0) {
+        currentModelGroupRules.pop();
+        renderModelGroupRules();
+      }
+    }
+
+    function handleModelGroupPaste(event) {
+      const pasted = (event.clipboardData || window.clipboardData).getData('text');
+      if (pasted && (pasted.includes(',') || pasted.includes('\n') || pasted.includes('[') || pasted.includes(' '))) {
+        event.preventDefault();
+        const tokens = parseTokensFromText(pasted);
+        tokens.forEach(addModelGroupRule);
+        event.target.value = '';
+        renderModelGroupRules();
+      }
+    }
+
+    function removeModelGroupRule(idx) {
+      if (idx >= 0 && idx < currentModelGroupRules.length) {
+        currentModelGroupRules.splice(idx, 1);
+        renderModelGroupRules();
+      }
+    }
+
+    function clearAllModelGroupRules() {
+      currentModelGroupRules = [];
+      renderModelGroupRules();
+    }
+
+    function applyModelGroupPreset(preset) {
+      if (preset === '*') {
+        currentModelGroupRules = ['*'];
+      } else {
+        currentModelGroupRules = currentModelGroupRules.filter(r => r !== '*');
+        addModelGroupRule(preset);
+      }
+      renderModelGroupRules();
+    }
+
+    function toggleSystemModelSelection(modelName) {
+      if (!modelName) return;
+      const exactIdx = currentModelGroupRules.findIndex(r => r.toLowerCase() === modelName.toLowerCase());
+      if (exactIdx >= 0) {
+        currentModelGroupRules.splice(exactIdx, 1);
+      } else {
+        if (currentModelGroupRules.includes('*') && currentModelGroupRules.length === 1) {
+          currentModelGroupRules = [modelName];
+        } else {
+          addModelGroupRule(modelName);
+        }
+      }
+      renderModelGroupRules();
+    }
+
+    function filterSystemModelsPicker() {
+      renderSystemModelsPicker();
+    }
+
+    function renderSystemModelsPicker() {
+      const container = document.getElementById('system-models-list');
+      if (!container) return;
+      const search = (document.getElementById('system-models-search')?.value || '').trim().toLowerCase();
+      
+      let models = cachedAvailableModels;
+      if (!models || models.length === 0) {
+        container.innerHTML = '<span style="color: var(--text-3); font-size: 11px;">未查询到已注册模型</span>';
+        return;
+      }
+
+      if (search) {
+        models = models.filter(m => (m.model || '').toLowerCase().includes(search));
+      }
+
+      if (models.length === 0) {
+        container.innerHTML = '<span style="color: var(--text-3); font-size: 11px;">无匹配模型</span>';
+        return;
+      }
+
+      const hasWildcardAll = currentModelGroupRules.includes('*');
+
+      container.innerHTML = models.map(m => {
+        const mName = m.model;
+        const isExplicit = currentModelGroupRules.some(r => r.toLowerCase() === mName.toLowerCase());
+        const isCovered = hasWildcardAll || currentModelGroupRules.some(r => isModelMatchedByRule(r, mName));
+        
+        let chipClass = 'system-model-chip';
+        if (isExplicit) {
+          chipClass += ' selected';
+        } else if (isCovered) {
+          chipClass += ' covered';
+        }
+
+        return `
+          <span class="${chipClass}" onclick="toggleSystemModelSelection('${escapeHtml(mName)}')" title="${isExplicit ? '已添加（点击移除）' : (isCovered ? '已由通配符覆盖（点击可单独添加）' : '点击添加')}">
+            <span>${escapeHtml(mName)}</span>
+          </span>
+        `;
+      }).join('');
+    }
+
+    function toggleModelGroupEditorMode() {
+      isModelGroupJsonMode = !isModelGroupJsonMode;
+      const visualModeEl = document.getElementById('model-group-visual-mode');
+      const jsonModeEl = document.getElementById('model-group-json-mode');
+      const btnToggle = document.getElementById('btn-toggle-model-group-mode');
+      const textarea = document.getElementById('model-group-models');
+
+      if (isModelGroupJsonMode) {
+        const jsonStr = JSON.stringify(currentModelGroupRules.length > 0 ? currentModelGroupRules : ['*'], null, 2);
+        textarea.value = jsonStr;
+        visualModeEl.style.display = 'none';
+        jsonModeEl.style.display = 'block';
+        btnToggle.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 3px; vertical-align: middle;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          切换为可视化模式
+        `;
+      } else {
+        let raw = textarea.value.trim();
+        if (!raw) raw = '["*"]';
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            currentModelGroupRules = parsed.map(x => String(x).trim()).filter(Boolean);
+          } else {
+            currentModelGroupRules = [String(parsed).trim()].filter(Boolean);
+          }
+        } catch(e) {
+          const tokens = parseTokensFromText(raw);
+          if (tokens.length > 0) {
+            currentModelGroupRules = tokens;
+          } else {
+            toast('JSON 语法有误，请修正后再切换', 'error');
+            isModelGroupJsonMode = true;
+            return;
+          }
+        }
+        jsonModeEl.style.display = 'none';
+        visualModeEl.style.display = 'block';
+        btnToggle.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 3px; vertical-align: middle;"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          切换为 JSON 模式
+        `;
+        renderModelGroupRules();
+      }
+    }
+
     async function loadModelGroups() {
       const tbody = document.getElementById('groups-tbody');
       tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-3);">加载中...</td></tr>';
@@ -2740,7 +3174,7 @@
       } catch (err) {}
     }
 
-    function openModelGroupModal(groupOrId = null) {
+    async function openModelGroupModal(groupOrId = null) {
       let group = null;
       if (typeof groupOrId === 'number' || (typeof groupOrId === 'string' && /^\d+$/.test(groupOrId))) {
         group = cachedModelGroups.find(g => g.id == groupOrId);
@@ -2748,23 +3182,40 @@
         group = groupOrId;
       }
 
+      isModelGroupJsonMode = false;
+      document.getElementById('model-group-visual-mode').style.display = 'block';
+      document.getElementById('model-group-json-mode').style.display = 'none';
+      const btnToggle = document.getElementById('btn-toggle-model-group-mode');
+      if (btnToggle) {
+        btnToggle.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 3px; vertical-align: middle;"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          切换为 JSON 模式
+        `;
+      }
+      const inlineInput = document.getElementById('model-group-inline-input');
+      if (inlineInput) inlineInput.value = '';
+      const searchInput = document.getElementById('system-models-search');
+      if (searchInput) searchInput.value = '';
+
       if (group) {
         document.getElementById('model-group-modal-title').innerText = '编辑模型分组';
         document.getElementById('model-group-id').value = group.id;
         document.getElementById('model-group-name').value = group.name;
         document.getElementById('model-group-name').disabled = true;
         document.getElementById('model-group-display-name').value = group.display_name || '';
-        let formattedModels = '[\n  "*"\n]';
+        let rules = ['*'];
         if (Array.isArray(group.models)) {
-          formattedModels = JSON.stringify(group.models, null, 2);
+          rules = group.models;
         } else if (typeof group.models === 'string') {
           try {
-            formattedModels = JSON.stringify(JSON.parse(decodeHtml(group.models)), null, 2);
+            rules = JSON.parse(decodeHtml(group.models));
           } catch(e) {
-            formattedModels = group.models;
+            rules = parseTokensFromText(group.models);
           }
         }
-        document.getElementById('model-group-models').value = formattedModels;
+        if (!Array.isArray(rules)) rules = [rules];
+        currentModelGroupRules = rules.map(r => String(r).trim()).filter(Boolean);
+        document.getElementById('model-group-models').value = JSON.stringify(currentModelGroupRules, null, 2);
         document.getElementById('model-group-status').value = group.status;
       } else {
         document.getElementById('model-group-modal-title').innerText = '新建模型分组';
@@ -2772,38 +3223,51 @@
         document.getElementById('model-group-name').value = '';
         document.getElementById('model-group-name').disabled = false;
         document.getElementById('model-group-display-name').value = '';
+        currentModelGroupRules = ['*'];
         document.getElementById('model-group-models').value = '[\n  "*"\n]';
         document.getElementById('model-group-status').value = '1';
       }
+
       openModal('modal-model-group');
+      await loadAvailableModels();
+      renderModelGroupRules();
     }
 
     async function submitModelGroupForm() {
       const id = document.getElementById('model-group-id').value;
       const name = document.getElementById('model-group-name').value.trim();
       const displayName = document.getElementById('model-group-display-name').value.trim();
-      let modelsRaw = document.getElementById('model-group-models').value.trim();
       const status = parseInt(document.getElementById('model-group-status').value, 10);
 
       if (!name) return toast('请输入分组标识', 'error');
-      if (!modelsRaw) modelsRaw = '["*"]';
-      let parsedModels = ['*'];
-      try {
-        parsedModels = JSON.parse(modelsRaw);
-        if (!Array.isArray(parsedModels)) return toast('允许模型规则必须是 JSON 字符串数组格式', 'error');
-      } catch(e) {
-        return toast('模型规则 JSON 格式不合法，例如: ["gpt-4o*", "sora-2"]', 'error');
+
+      let parsedModels = [];
+      if (isModelGroupJsonMode) {
+        let modelsRaw = document.getElementById('model-group-models').value.trim();
+        if (!modelsRaw) modelsRaw = '["*"]';
+        try {
+          parsedModels = JSON.parse(modelsRaw);
+          if (!Array.isArray(parsedModels)) return toast('允许模型规则必须是 JSON 字符串数组格式', 'error');
+        } catch(e) {
+          return toast('模型规则 JSON 格式不合法，例如: ["gpt-4o*", "sora-2"]', 'error');
+        }
+      } else {
+        if (currentModelGroupRules.length === 0) {
+          parsedModels = ['*'];
+        } else {
+          parsedModels = currentModelGroupRules;
+        }
       }
 
       try {
         if (id) {
-          await api(`/v0/management/portal/model-groups/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify({ display_name: displayName, models: parsedModels, status })
+          await api('/v0/management/portal/model-groups/update', {
+            method: 'POST',
+            body: JSON.stringify({ id: parseInt(id, 10), display_name: displayName, models: parsedModels, status })
           });
           toast('模型分组更新成功');
         } else {
-          await api('/v0/management/portal/model-groups', {
+          await api('/v0/management/portal/model-groups/create', {
             method: 'POST',
             body: JSON.stringify({ name, display_name: displayName, models: parsedModels })
           });
@@ -2817,7 +3281,10 @@
     async function deleteModelGroup(id, name) {
       if (!confirm(`确认要删除模型分组 [${name}] 吗？删除后该组用户将自动回退到 default 分组。`)) return;
       try {
-        await api(`/v0/management/portal/model-groups/${id}`, { method: 'DELETE' });
+        await api('/v0/management/portal/model-groups/delete', {
+          method: 'POST',
+          body: JSON.stringify({ id: parseInt(id, 10) })
+        });
         toast('模型分组已删除');
         loadModelGroups();
       } catch(err) {}
@@ -3701,18 +4168,24 @@
             <div class="detail-card-header">
               <span>响应报文与计费信息</span>
             </div>
-            ${billingInfo ? `
-              <div class="meta-grid" style="margin-bottom: 10px;">
-                <div class="meta-item">
-                  <span class="meta-item-label">扣除积分 (Quota)</span>
-                  <span class="meta-item-value font-mono" style="color: var(--accent); font-weight: 600;">${billingInfo.quota || billingInfo.cost || '-'}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-item-label">生成耗时</span>
-                  <span class="meta-item-value font-mono">${billingInfo.duration ? billingInfo.duration + ' 秒' : '-'}</span>
-                </div>
+            <div class="meta-grid" style="margin-bottom: 10px;">
+              <div class="meta-item">
+                <span class="meta-item-label">扣除积分 (Cost)</span>
+                <span class="meta-item-value font-mono" style="color: var(--accent); font-weight: 600;">${task.cost || (billingInfo ? (billingInfo.cost || billingInfo.quota) : '-')}</span>
               </div>
-            ` : ''}
+              <div class="meta-item">
+                <span class="meta-item-label">计费状态</span>
+                <span class="meta-item-value font-mono">${task.billing_status || (billingInfo ? billingInfo.status : '-')}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-item-label">生成耗时</span>
+                <span class="meta-item-value font-mono">${task.duration_ms ? (task.duration_ms / 1000).toFixed(2) + ' 秒' : (billingInfo && billingInfo.duration ? billingInfo.duration + ' 秒' : '-')}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-item-label">计费类型</span>
+                <span class="meta-item-value font-mono">${task.billing_type || (billingInfo ? billingInfo.billing_type : 'fixed')}</span>
+              </div>
+            </div>
 
             <!-- Collapsible Raw Output JSON -->
             <div>

@@ -11,6 +11,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/aigc"
@@ -142,6 +143,8 @@ func (m *Mutator) handleBeforeComplete(ctx context.Context, req aigc.GenerationM
 	}
 
 	newArtifacts := make([]aigc.ContentGenerationArtifact, len(artifacts))
+	var uploadedEgressKeys []string
+	var egressMu sync.Mutex
 	var g errgroup.Group
 	g.SetLimit(4)
 
@@ -153,6 +156,10 @@ func (m *Mutator) handleBeforeComplete(ctx context.Context, req aigc.GenerationM
 			if item.Metadata != nil {
 				if b, ok := item.Metadata["b64_json"].(string); ok && b != "" {
 					b64Data = b
+				} else if b, ok := item.Metadata["image_base64"].(string); ok && b != "" {
+					b64Data = b
+				} else if b, ok := item.Metadata["base64"].(string); ok && b != "" {
+					b64Data = b
 				}
 			}
 			if b64Data == "" && strings.HasPrefix(item.URI, "data:") {
@@ -160,13 +167,25 @@ func (m *Mutator) handleBeforeComplete(ctx context.Context, req aigc.GenerationM
 			}
 
 			if (item.StorageProvider == "inline" || strings.HasPrefix(item.URI, "data:") || strings.HasPrefix(item.URI, "inline://")) && b64Data != "" {
-				tosURL, mimeType, sizeBytes, sha256Hex, errUp := m.uploadBase64Data(ctx, b64Data, m.outputPrefix)
+				tosURL, objKey, mimeType, sizeBytes, sha256Hex, errUp := m.uploadBase64Data(ctx, b64Data, m.outputPrefix)
 				if errUp == nil && tosURL != "" {
 					item.StorageProvider = "tos"
 					item.URI = tosURL
 					item.MIMEType = mimeType
 					item.SizeBytes = sizeBytes
 					item.SHA256 = sha256Hex
+					if item.Metadata != nil {
+						delete(item.Metadata, "b64_json")
+						delete(item.Metadata, "image_base64")
+						delete(item.Metadata, "image_b64")
+						delete(item.Metadata, "base64")
+						delete(item.Metadata, "file_base64")
+					}
+					if objKey != "" {
+						egressMu.Lock()
+						uploadedEgressKeys = append(uploadedEgressKeys, objKey)
+						egressMu.Unlock()
+					}
 				}
 			}
 			newArtifacts[idx] = item
@@ -176,18 +195,56 @@ func (m *Mutator) handleBeforeComplete(ctx context.Context, req aigc.GenerationM
 	_ = g.Wait()
 	updatedGen.Artifacts = newArtifacts
 
-	// Transform Output JSON if present
-	if len(updatedGen.Output) > 0 {
+	// Synchronize Output JSON:
+	// If updatedGen.Output was the serialized artifact list from driver, update it with newArtifacts.
+	var isArtifactList bool
+	if len(updatedGen.Output) > 0 && len(newArtifacts) > 0 {
+		var rawArts []aigc.ContentGenerationArtifact
+		if err := json.Unmarshal(updatedGen.Output, &rawArts); err == nil && len(rawArts) > 0 && rawArts[0].ArtifactType != "" {
+			isArtifactList = true
+			if b, errM := json.Marshal(newArtifacts); errM == nil {
+				updatedGen.Output = b
+			}
+		}
+	}
+
+	// Transform Output JSON if present and not an artifact list (e.g. raw provider payload with Data URIs or b64_json)
+	if len(updatedGen.Output) > 0 && !isArtifactList {
 		var root any
 		if err := json.Unmarshal(updatedGen.Output, &root); err == nil {
 			urlCache := make(map[string]string)
-			uploadedKeys := make([]string, 0)
 			var totalBytes int64
-			transformed, errT := m.transformNode(ctx, root, urlCache, &uploadedKeys, &totalBytes, m.outputPrefix)
+			transformed, errT := m.transformNode(ctx, root, urlCache, &uploadedEgressKeys, &totalBytes, m.outputPrefix)
 			if errT == nil {
 				if b, errM := json.Marshal(transformed); errM == nil {
 					updatedGen.Output = b
 				}
+			}
+		}
+	}
+
+	// Record uploaded egress objects into generation metadata
+	if len(uploadedEgressKeys) > 0 {
+		if updatedGen.Metadata == nil {
+			updatedGen.Metadata = make(map[string]any)
+		}
+		if existing, ok := updatedGen.Metadata["data-uri-to-tos"].(map[string]any); ok {
+			var objs []string
+			if rawObjs, ok := existing["objects"].([]any); ok {
+				for _, o := range rawObjs {
+					if s, ok := o.(string); ok {
+						objs = append(objs, s)
+					}
+				}
+			} else if rawObjs, ok := existing["objects"].([]string); ok {
+				objs = append(objs, rawObjs...)
+			}
+			objs = append(objs, uploadedEgressKeys...)
+			existing["objects"] = objs
+			updatedGen.Metadata["data-uri-to-tos"] = existing
+		} else {
+			updatedGen.Metadata["data-uri-to-tos"] = map[string]any{
+				"objects": uploadedEgressKeys,
 			}
 		}
 	}
@@ -198,7 +255,7 @@ func (m *Mutator) handleBeforeComplete(ctx context.Context, req aigc.GenerationM
 	}, nil
 }
 
-func (m *Mutator) uploadBase64Data(ctx context.Context, b64Str, prefix string) (string, string, int64, string, error) {
+func (m *Mutator) uploadBase64Data(ctx context.Context, b64Str, prefix string) (string, string, string, int64, string, error) {
 	rawB64 := strings.TrimSpace(b64Str)
 	mimeType := "image/png"
 	if matches := dataURIRegex.FindStringSubmatch(rawB64); len(matches) == 3 {
@@ -211,7 +268,7 @@ func (m *Mutator) uploadBase64Data(ctx context.Context, b64Str, prefix string) (
 		var errRaw error
 		data, errRaw = base64.RawStdEncoding.DecodeString(rawB64)
 		if errRaw != nil {
-			return "", "", 0, "", fmt.Errorf("invalid base64: %w", errDecode)
+			return "", "", "", 0, "", fmt.Errorf("invalid base64: %w", errDecode)
 		}
 	}
 
@@ -228,10 +285,10 @@ func (m *Mutator) uploadBase64Data(ctx context.Context, b64Str, prefix string) (
 
 	uploadedURL, errUpload := m.uploader.Upload(ctx, key, mimeType, data)
 	if errUpload != nil {
-		return "", "", 0, "", fmt.Errorf("upload to tos (%s): %w", key, errUpload)
+		return "", "", "", 0, "", fmt.Errorf("upload to tos (%s): %w", key, errUpload)
 	}
 
-	return uploadedURL, mimeType, int64(len(data)), hashHex, nil
+	return uploadedURL, key, mimeType, int64(len(data)), hashHex, nil
 }
 
 func (m *Mutator) transformNode(ctx context.Context, node any, urlCache map[string]string, uploadedKeys *[]string, totalBytes *int64, prefix string) (any, error) {
@@ -251,6 +308,22 @@ func (m *Mutator) transformNode(ctx context.Context, node any, urlCache map[stri
 	case map[string]any:
 		res := make(map[string]any, len(v))
 		for k, item := range v {
+			lowerK := strings.ToLower(k)
+			if lowerK == "b64_json" || lowerK == "image_base64" || lowerK == "image_b64" || lowerK == "file_base64" {
+				if s, ok := item.(string); ok && len(s) > 0 {
+					if existingURL, okURL := v["url"].(string); okURL && (strings.HasPrefix(existingURL, "http://") || strings.HasPrefix(existingURL, "https://")) {
+						continue
+					}
+					tosURL, objKey, _, _, _, errUp := m.uploadBase64Data(ctx, s, prefix)
+					if errUp == nil && tosURL != "" {
+						res["url"] = tosURL
+						if uploadedKeys != nil && objKey != "" {
+							*uploadedKeys = append(*uploadedKeys, objKey)
+						}
+						continue
+					}
+				}
+			}
 			transformed, err := m.transformNode(ctx, item, urlCache, uploadedKeys, totalBytes, prefix)
 			if err != nil {
 				return nil, err

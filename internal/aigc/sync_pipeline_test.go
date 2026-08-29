@@ -111,3 +111,94 @@ func TestSyncPipeline_BeforeCreateReject(t *testing.T) {
 		t.Errorf("status = %d, want 400", errMsg.StatusCode)
 	}
 }
+
+type testBeforeCompleteMutator struct{}
+
+func (m *testBeforeCompleteMutator) MutateContentGeneration(ctx context.Context, req aigc.GenerationMutationRequest) (aigc.GenerationMutationResponse, error) {
+	if req.Phase == aigc.PhaseBeforeComplete {
+		updatedGen := req.Generation
+		updatedGen.Output = json.RawMessage(`[{"artifact_type":"output_image","uri":"https://tos.example.com/out.png"}]`)
+		if updatedGen.Metadata == nil {
+			updatedGen.Metadata = make(map[string]any)
+		}
+		updatedGen.Metadata["tos"] = "uploaded"
+		arts := []aigc.ContentGenerationArtifact{
+			{
+				ArtifactType:    "output_image",
+				StorageProvider: "tos",
+				URI:             "https://tos.example.com/out.png",
+			},
+		}
+		return aigc.GenerationMutationResponse{
+			Generation: &updatedGen,
+			Artifacts:  arts,
+		}, nil
+	}
+	return aigc.GenerationMutationResponse{
+		Draft:      req.Draft,
+		Generation: &req.Generation,
+		Artifacts:  req.Generation.Artifacts,
+	}, nil
+}
+
+func TestSyncPipeline_BeforeCompleteMutation(t *testing.T) {
+	store := newInMemoryStore()
+	driver := &syncSuccessDriver{
+		kind:  aigc.ContentKindImage,
+		model: "dall-e-3",
+	}
+	mutator := &testBeforeCompleteMutator{}
+	host := pluginhost.NewTestHost(
+		pluginhost.TestCapabilityRecord{
+			ID:       "store-plugin",
+			Priority: 100,
+			Plugin: pluginapi.Plugin{
+				Capabilities: pluginapi.Capabilities{ContentGenerationStore: store},
+			},
+		},
+		pluginhost.TestCapabilityRecord{
+			ID:       "driver-plugin",
+			Priority: 50,
+			Plugin: pluginapi.Plugin{
+				Capabilities: pluginapi.Capabilities{ContentGenerationDriver: driver},
+			},
+		},
+		pluginhost.TestCapabilityRecord{
+			ID:       "mutator-plugin",
+			Priority: 80,
+			Plugin: pluginapi.Plugin{
+				Capabilities: pluginapi.Capabilities{ContentGenerationMutator: mutator},
+			},
+		},
+	)
+
+	exec := &testSyncImageExecutor{}
+	pipeline := NewSyncPipeline(host, nil)
+	pipeline.SetImageExecutor(exec)
+
+	req := SyncImageRequest{
+		Model: "dall-e-3",
+		Input: []byte(`{"prompt":"a blue sky"}`),
+	}
+
+	result, errMsg := pipeline.Execute(context.Background(), req)
+	if errMsg != nil {
+		t.Fatalf("pipeline.Execute failed: %v", errMsg.Error)
+	}
+
+	if len(result.Artifacts) != 1 || result.Artifacts[0].URI != "https://tos.example.com/out.png" {
+		t.Fatalf("expected mutated artifact TOS URI, got: %+v", result.Artifacts)
+	}
+
+	// Verify store was patched with mutated output and metadata
+	gen, errGet := store.Get(context.Background(), aigc.GenerationGetRequest{ID: result.ID})
+	if errGet != nil {
+		t.Fatalf("failed to get stored gen: %v", errGet)
+	}
+	if string(gen.Output) != `[{"artifact_type":"output_image","uri":"https://tos.example.com/out.png"}]` {
+		t.Errorf("expected mutated output in store, got: %s", string(gen.Output))
+	}
+	if gen.Metadata == nil || gen.Metadata["tos"] != "uploaded" {
+		t.Errorf("expected mutated metadata in store, got: %+v", gen.Metadata)
+	}
+}

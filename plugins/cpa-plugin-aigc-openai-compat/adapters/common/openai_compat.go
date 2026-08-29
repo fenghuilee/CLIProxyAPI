@@ -86,9 +86,6 @@ func isExplicitImageModel(model string) bool {
 func (a *OpenAICompatAdapter) PrepareSubmit(ctx context.Context, input aigc.GenerationSubmitInput) (aigc.GenerationExecutionRequest, error) {
 	gen := input.Generation
 	inputBytes := gen.Input
-	if len(gen.PreparedInput) > 0 {
-		inputBytes = gen.PreparedInput
-	}
 
 	_, _, _, imgSubmitPath, imgEditPath, vidSubmitPath, _ := a.cfgFunc()
 	if imgSubmitPath == "" {
@@ -174,7 +171,6 @@ func (a *OpenAICompatAdapter) prepareImageSubmit(gen aigc.ContentGeneration, inp
 		Header:   header,
 		Body:     bodyBytes,
 		Model:    gen.Model,
-		AuthID:   gen.AuthID,
 		Metadata: map[string]any{"provider": "openai-compat", "kind": "image"},
 	}, nil
 }
@@ -235,7 +231,6 @@ func (a *OpenAICompatAdapter) prepareVideoSubmit(gen aigc.ContentGeneration, inp
 		Header:   header,
 		Body:     bodyBytes,
 		Model:    gen.Model,
-		AuthID:   gen.AuthID,
 		Metadata: map[string]any{"provider": "openai-compat", "kind": "video"},
 	}, nil
 }
@@ -283,7 +278,6 @@ func (a *OpenAICompatAdapter) PreparePoll(ctx context.Context, input aigc.Genera
 		Method:   http.MethodGet,
 		URL:      pollURL,
 		Model:    input.Generation.Model,
-		AuthID:   input.Generation.AuthID,
 		Metadata: map[string]any{"provider": "openai-compat", "task_id": taskID},
 	}, nil
 }
@@ -321,7 +315,6 @@ func (a *OpenAICompatAdapter) PrepareCancel(ctx context.Context, input aigc.Gene
 		Method: http.MethodPost,
 		URL:    fmt.Sprintf("/videos/generations/%s/cancel", taskID),
 		Model:  input.Generation.Model,
-		AuthID: input.Generation.AuthID,
 	}, nil
 }
 

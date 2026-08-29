@@ -60,9 +60,6 @@ func (a *QwenImageAdapter) Supports(ctx context.Context, req aigc.GenerationSupp
 func (a *QwenImageAdapter) PrepareSubmit(ctx context.Context, input aigc.GenerationSubmitInput) (aigc.GenerationExecutionRequest, error) {
 	gen := input.Generation
 	inputBytes := gen.Input
-	if len(gen.PreparedInput) > 0 {
-		inputBytes = gen.PreparedInput
-	}
 
 	model := strings.TrimSpace(gen.Model)
 	if strings.HasPrefix(model, "qwen/") {
@@ -177,7 +174,6 @@ func (a *QwenImageAdapter) PrepareSubmit(ctx context.Context, input aigc.Generat
 		Header:   header,
 		Body:     bodyBytes,
 		Model:    gen.Model,
-		AuthID:   gen.AuthID,
 		Metadata: map[string]any{"provider": "qwen-image"},
 	}, nil
 }
@@ -227,7 +223,6 @@ func (a *QwenImageAdapter) PreparePoll(ctx context.Context, input aigc.Generatio
 		URL:      taskURL,
 		Header:   header,
 		Model:    input.Generation.Model,
-		AuthID:   input.Generation.AuthID,
 		Metadata: map[string]any{"provider": "qwen-image", "task_id": taskID},
 	}, nil
 }
@@ -272,7 +267,6 @@ func (a *QwenImageAdapter) PrepareCancel(ctx context.Context, input aigc.Generat
 		Method: http.MethodPost,
 		URL:    cancelURL,
 		Model:  input.Generation.Model,
-		AuthID: input.Generation.AuthID,
 	}, nil
 }
 

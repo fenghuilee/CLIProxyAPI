@@ -81,6 +81,16 @@ func (s *inMemoryStore) Patch(ctx context.Context, req aigc.GenerationPatchReque
 			gen.ErrorCode = v.(string)
 		case "error_message":
 			gen.ErrorMessage = v.(string)
+		case "output":
+			if raw, ok := v.(json.RawMessage); ok {
+				gen.Output = raw
+			} else if b, ok := v.([]byte); ok {
+				gen.Output = b
+			}
+		case "metadata":
+			if m, ok := v.(map[string]any); ok {
+				gen.Metadata = m
+			}
 		}
 	}
 	if len(req.Artifacts) > 0 {

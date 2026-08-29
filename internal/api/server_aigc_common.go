@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -243,9 +244,6 @@ func formatAIGCResponse(gen aigc.ContentGeneration) aigcResponse {
 	if len(gen.Output) > 0 {
 		resp.Usage = normalizeImageUsage(gen.Output)
 	}
-	if resp.Usage == nil && len(gen.ProviderResponse) > 0 {
-		resp.Usage = normalizeImageUsage(gen.ProviderResponse)
-	}
 	return resp
 }
 
@@ -316,6 +314,10 @@ func (s *Server) handleAIGCAsyncCreate(c *gin.Context, kind aigc.ContentKind) {
 	if reqID == "" {
 		reqID = strings.TrimSpace(c.GetString("request_id"))
 	}
+	var userID uint64
+	if uStr := strings.TrimSpace(c.GetHeader("X-User-ID")); uStr != "" {
+		userID, _ = strconv.ParseUint(uStr, 10, 64)
+	}
 
 	metadata := map[string]any{
 		"canonical": parsed,
@@ -323,6 +325,7 @@ func (s *Server) handleAIGCAsyncCreate(c *gin.Context, kind aigc.ContentKind) {
 
 	draft := aigc.ContentGenerationDraft{
 		RequestID: reqID,
+		UserID:    userID,
 		Kind:      kind,
 		APIKey:    apiKey,
 		ClientIP:  clientIP,

@@ -25,6 +25,8 @@ type ImageExecutor interface {
 // SyncImageRequest contains parameters for synchronous image generation/editing.
 type SyncImageRequest struct {
 	ID            string         `json:"id,omitempty"`
+	RequestID     string         `json:"request_id,omitempty"`
+	UserID        uint64         `json:"user_id,omitempty"`
 	Model         string         `json:"model"`
 	Input         []byte         `json:"input"`
 	DesiredFormat string         `json:"desired_format,omitempty"` // "url" or "b64_json"
@@ -80,13 +82,15 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 	}
 
 	draft := aigc.ContentGenerationDraft{
-		ID:       genID,
-		Kind:     aigc.ContentKindImage,
-		Model:    model,
-		APIKey:   req.APIKey,
-		ClientIP: req.ClientIP,
-		Input:    req.Input,
-		Metadata: req.Metadata,
+		ID:        genID,
+		RequestID: req.RequestID,
+		UserID:    req.UserID,
+		Kind:      aigc.ContentKindImage,
+		Model:     model,
+		APIKey:    req.APIKey,
+		ClientIP:  req.ClientIP,
+		Input:     req.Input,
+		Metadata:  req.Metadata,
 	}
 
 	// 1. PhaseBeforeCreate (Ingress transformation, Data-URI to TOS, Asset pre-creation)
@@ -262,10 +266,12 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 	// 8. PhaseBeforeComplete (Egress TOS upload for Base64 artifacts)
 	finalArtifacts := submitResult.Artifacts
 	finalOutput := submitResult.Output
+	finalMetadata := draft.Metadata
 	if p.pluginHost != nil && (len(finalArtifacts) > 0 || len(finalOutput) > 0) {
 		persistGen := gen
 		persistGen.Artifacts = finalArtifacts
 		persistGen.Output = finalOutput
+		persistGen.Metadata = finalMetadata
 		mutResp, _ := p.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
 			Phase:      aigc.PhaseBeforeComplete,
 			Generation: persistGen,
@@ -276,27 +282,35 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 		if len(mutResp.Artifacts) > 0 {
 			finalArtifacts = mutResp.Artifacts
 		}
-		if mutResp.Generation != nil && len(mutResp.Generation.Output) > 0 {
-			finalOutput = mutResp.Generation.Output
+		if mutResp.Generation != nil {
+			if len(mutResp.Generation.Output) > 0 {
+				finalOutput = mutResp.Generation.Output
+			}
+			if len(mutResp.Generation.Metadata) > 0 {
+				finalMetadata = mutResp.Generation.Metadata
+			}
 		}
 	}
 
 	// 9. Persist Succeeded status in store
 	if store != nil && okStore {
+		patchSet := map[string]any{
+			"status":           aigc.StatusSucceeded,
+			"stage":            aigc.StageCompleted,
+			"progress":         100,
+			"provider":         driverPluginID,
+			"provider_request": json.RawMessage(execReq.Body),
+			"provider_task_id": submitResult.ProviderTaskID,
+			"output":           finalOutput,
+		}
+		if len(finalMetadata) > 0 {
+			patchSet["metadata"] = finalMetadata
+		}
 		_, _ = store.Patch(ctx, aigc.GenerationPatchRequest{
 			ID:               genID,
 			ExpectedRevision: createdGen.Revision,
-			Set: map[string]any{
-				"status":            aigc.StatusSucceeded,
-				"stage":             aigc.StageCompleted,
-				"progress":          100,
-				"provider":          driverPluginID,
-				"provider_request":  json.RawMessage(execReq.Body),
-				"provider_task_id":  submitResult.ProviderTaskID,
-				"provider_response": aigc.SanitizeProviderResponse(submitResult.ProviderResponse),
-				"output":            finalOutput,
-			},
-			Artifacts: finalArtifacts,
+			Set:              patchSet,
+			Artifacts:        finalArtifacts,
 		})
 		p.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
 			GenerationID: genID,
@@ -314,6 +328,7 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 		gen.Progress = 100
 		gen.Artifacts = finalArtifacts
 		gen.Output = finalOutput
+		gen.Metadata = finalMetadata
 		_, _ = p.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
 			Phase:      aigc.PhaseOnSucceeded,
 			Generation: gen,

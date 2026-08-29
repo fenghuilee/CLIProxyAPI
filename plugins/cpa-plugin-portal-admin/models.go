@@ -366,8 +366,10 @@ func (UsageStatisticDaily) TableName() string { return "usage_statistics_daily" 
 type ContentGeneration struct {
 	GenerationID   string                      `gorm:"primaryKey;column:generation_id;size:64" json:"generation_id"`
 	RequestID      string                      `gorm:"column:request_id;size:64;index" json:"request_id,omitempty"`
+	UserID         uint64                      `gorm:"column:user_id;not null;default:0;index" json:"user_id"`
 	Kind           string                      `gorm:"size:32;not null" json:"kind"`
 	Model          string                      `gorm:"size:128;not null" json:"model"`
+	Prompt         string                      `gorm:"type:text" json:"prompt,omitempty"`
 	Status         string                      `gorm:"size:32;not null" json:"status"`
 	Stage          string                      `gorm:"size:32;not null" json:"stage"`
 	Progress       int                         `gorm:"not null;default:0" json:"progress"`
@@ -381,9 +383,13 @@ type ContentGeneration struct {
 	ProviderTaskID string                      `gorm:"size:255" json:"provider_task_id,omitempty"`
 	ErrorCode      string                      `gorm:"size:64" json:"error_code,omitempty"`
 	ErrorMessage   string                      `gorm:"type:text" json:"error_message,omitempty"`
-	BillingUsage   string                      `gorm:"type:longtext" json:"billing_usage,omitempty"`
+	BillingType    string                      `gorm:"size:32;not null;default:'fixed'" json:"billing_type"`
+	BillingStatus  string                      `gorm:"size:32;not null;default:'unbilled';index" json:"billing_status"`
+	Cost           decimal.Decimal             `gorm:"type:decimal(18,8);not null;default:0" json:"cost"`
+	DurationMs     int64                       `gorm:"column:duration_ms" json:"duration_ms,omitempty"`
 	CreatedAt      time.Time                   `gorm:"not null" json:"created_at"`
 	UpdatedAt      time.Time                   `gorm:"not null" json:"updated_at"`
+	CompletedAt    *time.Time                  `gorm:"column:completed_at" json:"completed_at,omitempty"`
 	Artifacts      []ContentGenerationArtifact `gorm:"foreignKey:GenerationID;references:GenerationID" json:"artifacts,omitempty"`
 }
 
@@ -406,8 +412,10 @@ func ParseJSONOrRaw(raw string) any {
 type ContentGenerationDTO struct {
 	GenerationID   string                      `json:"generation_id"`
 	RequestID      string                      `json:"request_id,omitempty"`
+	UserID         uint64                      `json:"user_id"`
 	Kind           string                      `json:"kind"`
 	Model          string                      `json:"model"`
+	Prompt         string                      `json:"prompt,omitempty"`
 	Status         string                      `json:"status"`
 	Stage          string                      `json:"stage"`
 	Progress       int                         `json:"progress"`
@@ -421,9 +429,13 @@ type ContentGenerationDTO struct {
 	ProviderTaskID string                      `json:"provider_task_id,omitempty"`
 	ErrorCode      string                      `json:"error_code,omitempty"`
 	ErrorMessage   string                      `json:"error_message,omitempty"`
-	BillingUsage   any                         `json:"billing_usage,omitempty"`
+	BillingType    string                      `json:"billing_type"`
+	BillingStatus  string                      `json:"billing_status"`
+	Cost           decimal.Decimal             `json:"cost"`
+	DurationMs     int64                       `json:"duration_ms,omitempty"`
 	CreatedAt      time.Time                   `json:"created_at"`
 	UpdatedAt      time.Time                   `json:"updated_at"`
+	CompletedAt    *time.Time                  `json:"completed_at,omitempty"`
 	Artifacts      []ContentGenerationArtifact `json:"artifacts,omitempty"`
 }
 
@@ -431,8 +443,10 @@ func (c ContentGeneration) ToDTO() ContentGenerationDTO {
 	return ContentGenerationDTO{
 		GenerationID:   c.GenerationID,
 		RequestID:      c.RequestID,
+		UserID:         c.UserID,
 		Kind:           c.Kind,
 		Model:          c.Model,
+		Prompt:         c.Prompt,
 		Status:         c.Status,
 		Stage:          c.Stage,
 		Progress:       c.Progress,
@@ -446,9 +460,13 @@ func (c ContentGeneration) ToDTO() ContentGenerationDTO {
 		ProviderTaskID: c.ProviderTaskID,
 		ErrorCode:      c.ErrorCode,
 		ErrorMessage:   c.ErrorMessage,
-		BillingUsage:   ParseJSONOrRaw(c.BillingUsage),
+		BillingType:    c.BillingType,
+		BillingStatus:  c.BillingStatus,
+		Cost:           c.Cost,
+		DurationMs:     c.DurationMs,
 		CreatedAt:      c.CreatedAt,
 		UpdatedAt:      c.UpdatedAt,
+		CompletedAt:    c.CompletedAt,
 		Artifacts:      c.Artifacts,
 	}
 }

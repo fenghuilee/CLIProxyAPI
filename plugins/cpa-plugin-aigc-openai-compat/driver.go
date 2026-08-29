@@ -158,9 +158,6 @@ func (d *Driver) getAdapterForGeneration(gen aigc.ContentGeneration) SubAdapter 
 // PrepareSubmit validates input according to OpenAI standards and delegates to the matched sub-adapter.
 func (d *Driver) PrepareSubmit(ctx context.Context, input aigc.GenerationSubmitInput) (aigc.GenerationExecutionRequest, error) {
 	inputBytes := input.Generation.Input
-	if len(input.Generation.PreparedInput) > 0 {
-		inputBytes = input.Generation.PreparedInput
-	}
 	if err := ValidateOpenAIInput(input.Generation.Kind, inputBytes); err != nil {
 		return aigc.GenerationExecutionRequest{}, err
 	}

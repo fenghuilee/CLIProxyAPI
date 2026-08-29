@@ -296,11 +296,8 @@ func (m *Mutator) extractAssetIDs(gen aigc.ContentGeneration) []string {
 		return ids
 	}
 
-	// Fallback: extract any string starting with "asset-" from gen.Input or gen.PreparedInput
+	// Fallback: extract any string starting with "asset-" from gen.Input
 	inputBytes := gen.Input
-	if len(gen.PreparedInput) > 0 {
-		inputBytes = gen.PreparedInput
-	}
 	var root any
 	if err := json.Unmarshal(inputBytes, &root); err == nil {
 		scanAssetIDs(root, &ids)
