@@ -128,6 +128,11 @@ func (a *VolcengineSeedreamAdapter) PrepareSubmit(ctx context.Context, input aig
 		payload["response_format"] = rf
 	}
 
+	// Mask (if present)
+	if mask := gjson.GetBytes(inputBytes, "mask"); mask.Exists() {
+		payload["mask"] = mask.Value()
+	}
+
 	bodyBytes, errMarshal := json.Marshal(payload)
 	if errMarshal != nil {
 		return aigc.GenerationExecutionRequest{}, fmt.Errorf("marshal seedream submit payload: %w", errMarshal)

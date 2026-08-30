@@ -120,15 +120,47 @@ func (a *OpenAICompatAdapter) prepareImageSubmit(gen aigc.ContentGeneration, inp
 		payload["prompt"] = prompt
 	}
 
-	if len(images) > 0 {
-		if len(images) == 1 {
-			payload["image"] = images[0]
-		} else {
-			payload["images"] = images
-		}
+	hasPrompt := prompt != ""
+	hasImages := len(images) > 0
+
+	targetPath := submitPath
+	if hasImages && hasPrompt && editPath != "" {
+		targetPath = editPath
+	} else if hasImages && !hasPrompt {
+		targetPath = "/images/variations"
 	}
-	if hasMask {
-		payload["mask"] = gjson.GetBytes(inputBytes, "mask").Value()
+
+	if targetPath == editPath {
+		var imageObjects []map[string]any
+		for _, img := range images {
+			imageObjects = append(imageObjects, map[string]any{
+				"image_url": img,
+			})
+		}
+		if len(imageObjects) > 0 {
+			payload["images"] = imageObjects
+		}
+		if hasMask {
+			maskVal := gjson.GetBytes(inputBytes, "mask")
+			if maskVal.IsObject() && maskVal.Get("image_url").Exists() {
+				payload["mask"] = maskVal.Value()
+			} else if maskStr := strings.TrimSpace(maskVal.String()); maskStr != "" {
+				payload["mask"] = map[string]any{
+					"image_url": maskStr,
+				}
+			}
+		}
+	} else {
+		if len(images) > 0 {
+			if len(images) == 1 {
+				payload["image"] = images[0]
+			} else {
+				payload["images"] = images
+			}
+		}
+		if hasMask {
+			payload["mask"] = gjson.GetBytes(inputBytes, "mask").Value()
+		}
 	}
 
 	if size := utils.NormalizeSizeToX(inputBytes); size != "" {
@@ -154,8 +186,6 @@ func (a *OpenAICompatAdapter) prepareImageSubmit(gen aigc.ContentGeneration, inp
 	if neg := utils.ExtractNegativePrompt(inputBytes); neg != "" {
 		payload["negative_prompt"] = neg
 	}
-
-	targetPath := submitPath
 
 	bodyBytes, errMarshal := json.Marshal(payload)
 	if errMarshal != nil {

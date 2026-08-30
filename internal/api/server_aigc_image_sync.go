@@ -109,6 +109,24 @@ func (s *Server) handleAIGCSync(c *gin.Context) {
 		return
 	}
 
+	prompt := strings.TrimSpace(gjson.GetBytes(bodyBytes, "prompt").String())
+	hasImages := gjson.GetBytes(bodyBytes, "images").Exists() ||
+		gjson.GetBytes(bodyBytes, "image").Exists() ||
+		gjson.GetBytes(bodyBytes, "input_reference").Exists() ||
+		gjson.GetBytes(bodyBytes, "reference_images").Exists() ||
+		gjson.GetBytes(bodyBytes, "content").Exists() ||
+		gjson.GetBytes(bodyBytes, "text").Exists()
+
+	if prompt == "" && !hasImages {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"message": "prompt or image is required",
+				"type":    "invalid_request_error",
+			},
+		})
+		return
+	}
+
 	desiredFormat := strings.ToLower(strings.TrimSpace(gjson.GetBytes(bodyBytes, "response_format").String()))
 	if desiredFormat == "" {
 		desiredFormat = "url"

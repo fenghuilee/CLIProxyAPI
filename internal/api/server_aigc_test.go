@@ -480,6 +480,58 @@ func TestAIGCImageSyncEndpoints(t *testing.T) {
 	if singularEditRR.Code != http.StatusOK {
 		t.Fatalf("POST /aigc/v1/image/edits code = %d, want %d, body = %s", singularEditRR.Code, http.StatusOK, singularEditRR.Body.String())
 	}
+
+	// 6. Test POST /aigc/v1/images/generations with reference images (Img2Img)
+	img2imgPayload := []byte(`{"model":"qwen/qwen-image-3.0-pro","prompt":"transform to sketch style","images":["https://example.com/ref.png"]}`)
+	img2imgReq := httptest.NewRequest(http.MethodPost, "/aigc/v1/images/generations", bytes.NewReader(img2imgPayload))
+	img2imgReq.Header.Set("Content-Type", "application/json")
+	img2imgReq.Header.Set("Authorization", "Bearer test-key")
+	img2imgReq.Header.Set("X-Canonical-Body", `{"resolution":"720p","ratio":"1:1","width":1024,"height":1024}`)
+	img2imgRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(img2imgRR, img2imgReq)
+
+	if img2imgRR.Code != http.StatusOK {
+		t.Fatalf("POST /aigc/v1/images/generations (img2img) code = %d, want %d, body = %s", img2imgRR.Code, http.StatusOK, img2imgRR.Body.String())
+	}
+
+	// 7. Test POST /aigc/v1/images/generations with mask (Inpainting)
+	inpaintPayload := []byte(`{"model":"qwen/qwen-image-3.0-pro","prompt":"replace with sun","image":"https://example.com/orig.png","mask":"https://example.com/mask.png"}`)
+	inpaintReq := httptest.NewRequest(http.MethodPost, "/aigc/v1/images/generations", bytes.NewReader(inpaintPayload))
+	inpaintReq.Header.Set("Content-Type", "application/json")
+	inpaintReq.Header.Set("Authorization", "Bearer test-key")
+	inpaintReq.Header.Set("X-Canonical-Body", `{"resolution":"720p","ratio":"1:1","width":1024,"height":1024}`)
+	inpaintRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(inpaintRR, inpaintReq)
+
+	if inpaintRR.Code != http.StatusOK {
+		t.Fatalf("POST /aigc/v1/images/generations (inpaint) code = %d, want %d, body = %s", inpaintRR.Code, http.StatusOK, inpaintRR.Body.String())
+	}
+
+	// 8. Test POST /aigc/v1/images/generations with image only (Variation)
+	varPayload := []byte(`{"model":"qwen/qwen-image-3.0-pro","image":"https://example.com/orig.png"}`)
+	varReq := httptest.NewRequest(http.MethodPost, "/aigc/v1/images/generations", bytes.NewReader(varPayload))
+	varReq.Header.Set("Content-Type", "application/json")
+	varReq.Header.Set("Authorization", "Bearer test-key")
+	varReq.Header.Set("X-Canonical-Body", `{"resolution":"720p","ratio":"1:1","width":1024,"height":1024}`)
+	varRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(varRR, varReq)
+
+	if varRR.Code != http.StatusOK {
+		t.Fatalf("POST /aigc/v1/images/generations (variation) code = %d, want %d, body = %s", varRR.Code, http.StatusOK, varRR.Body.String())
+	}
+
+	// 9. Test POST /aigc/v1/images/generations without prompt and without images -> 400 Bad Request
+	emptyPayload := []byte(`{"model":"qwen/qwen-image-3.0-pro","size":"1024x1024"}`)
+	emptyReq := httptest.NewRequest(http.MethodPost, "/aigc/v1/images/generations", bytes.NewReader(emptyPayload))
+	emptyReq.Header.Set("Content-Type", "application/json")
+	emptyReq.Header.Set("Authorization", "Bearer test-key")
+	emptyReq.Header.Set("X-Canonical-Body", `{"resolution":"720p","ratio":"1:1","width":1024,"height":1024}`)
+	emptyRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(emptyRR, emptyReq)
+
+	if emptyRR.Code != http.StatusBadRequest {
+		t.Fatalf("POST /aigc/v1/images/generations (empty prompt and image) code = %d, want %d", emptyRR.Code, http.StatusBadRequest)
+	}
 }
 
 func TestAIGCForwardedUserAPIKey(t *testing.T) {

@@ -587,7 +587,7 @@ func TestDriver_OpenAICompatFlow(t *testing.T) {
 		t.Fatalf("imgRes = %+v", imgRes)
 	}
 
-	// 1.1 OpenAI Image-to-Image (Image reference generation) - should stay on /images/generations
+	// 1.1 OpenAI Image-to-Image (Image reference generation) - routes to /images/edits
 	img2imgInput := aigc.GenerationSubmitInput{
 		Generation: aigc.ContentGeneration{
 			Kind:     aigc.ContentKindImage,
@@ -600,14 +600,57 @@ func TestDriver_OpenAICompatFlow(t *testing.T) {
 	if errImg2img != nil {
 		t.Fatalf("PrepareSubmit img2img error: %v", errImg2img)
 	}
-	if img2imgReq.URL != "/images/generations" {
-		t.Fatalf("URL = %q, want /images/generations (should not redirect to /images/edits)", img2imgReq.URL)
+	if img2imgReq.URL != "/images/edits" {
+		t.Fatalf("URL = %q, want /images/edits", img2imgReq.URL)
 	}
 	if img2imgReq.Header.Get("Content-Type") != "application/json" {
 		t.Fatalf("Content-Type = %q, want application/json", img2imgReq.Header.Get("Content-Type"))
 	}
 	if !strings.Contains(string(img2imgReq.Body), "https://example.com/portrait.png") {
 		t.Fatalf("body does not contain image url: %s", string(img2imgReq.Body))
+	}
+	if gjson.GetBytes(img2imgReq.Body, "images.0.image_url").String() != "https://example.com/portrait.png" {
+		t.Fatalf("images.0.image_url = %q, want https://example.com/portrait.png", gjson.GetBytes(img2imgReq.Body, "images.0.image_url").String())
+	}
+
+	// 1.2 OpenAI Inpainting with Mask - routes to /images/edits
+	inpaintInput := aigc.GenerationSubmitInput{
+		Generation: aigc.ContentGeneration{
+			Kind:     aigc.ContentKindImage,
+			Model:    "91/gpt-image-2",
+			Provider: "openai-compat",
+			Input:    []byte(`{"prompt":"add a red hat","image":"https://example.com/portrait.png","mask":"https://example.com/mask.png","size":"1024x1024"}`),
+		},
+	}
+	inpaintReq, errInpaint := driver.PrepareSubmit(ctx, inpaintInput)
+	if errInpaint != nil {
+		t.Fatalf("PrepareSubmit inpaint error: %v", errInpaint)
+	}
+	if inpaintReq.URL != "/images/edits" {
+		t.Fatalf("URL = %q, want /images/edits", inpaintReq.URL)
+	}
+	if gjson.GetBytes(inpaintReq.Body, "images.0.image_url").String() != "https://example.com/portrait.png" {
+		t.Fatalf("inpaint images.0.image_url = %q, want https://example.com/portrait.png", gjson.GetBytes(inpaintReq.Body, "images.0.image_url").String())
+	}
+	if gjson.GetBytes(inpaintReq.Body, "mask.image_url").String() != "https://example.com/mask.png" {
+		t.Fatalf("mask.image_url = %q, want https://example.com/mask.png", gjson.GetBytes(inpaintReq.Body, "mask.image_url").String())
+	}
+
+	// 1.3 OpenAI Variation (Image only without prompt) - routes to /images/variations
+	varInput := aigc.GenerationSubmitInput{
+		Generation: aigc.ContentGeneration{
+			Kind:     aigc.ContentKindImage,
+			Model:    "91/dall-e-2",
+			Provider: "openai-compat",
+			Input:    []byte(`{"image":"https://example.com/portrait.png","n":2}`),
+		},
+	}
+	varReq, errVar := driver.PrepareSubmit(ctx, varInput)
+	if errVar != nil {
+		t.Fatalf("PrepareSubmit variation error: %v", errVar)
+	}
+	if varReq.URL != "/images/variations" {
+		t.Fatalf("URL = %q, want /images/variations", varReq.URL)
 	}
 
 	// 2. OpenAI Video (Sora / Async Video)

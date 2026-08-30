@@ -4065,9 +4065,6 @@
           `;
         }
 
-        // 5. Parse Billing Usage
-        const billingInfo = safeParseJSON(task.billing_usage);
-
         // Build Drawer Body Content
         body.innerHTML = `
           <!-- Overview Card -->
@@ -4171,19 +4168,19 @@
             <div class="meta-grid" style="margin-bottom: 10px;">
               <div class="meta-item">
                 <span class="meta-item-label">扣除积分 (Cost)</span>
-                <span class="meta-item-value font-mono" style="color: var(--accent); font-weight: 600;">${task.cost || (billingInfo ? (billingInfo.cost || billingInfo.quota) : '-')}</span>
+                <span class="meta-item-value font-mono" style="color: var(--accent); font-weight: 600;">${task.cost || '-'}</span>
               </div>
               <div class="meta-item">
                 <span class="meta-item-label">计费状态</span>
-                <span class="meta-item-value font-mono">${task.billing_status || (billingInfo ? billingInfo.status : '-')}</span>
+                <span class="meta-item-value font-mono">${task.billing_status || '-'}</span>
               </div>
               <div class="meta-item">
                 <span class="meta-item-label">生成耗时</span>
-                <span class="meta-item-value font-mono">${task.duration_ms ? (task.duration_ms / 1000).toFixed(2) + ' 秒' : (billingInfo && billingInfo.duration ? billingInfo.duration + ' 秒' : '-')}</span>
+                <span class="meta-item-value font-mono">${task.duration_ms ? (task.duration_ms / 1000).toFixed(2) + ' 秒' : '-'}</span>
               </div>
               <div class="meta-item">
                 <span class="meta-item-label">计费类型</span>
-                <span class="meta-item-value font-mono">${task.billing_type || (billingInfo ? billingInfo.billing_type : 'fixed')}</span>
+                <span class="meta-item-value font-mono">${task.billing_type || 'fixed'}</span>
               </div>
             </div>
 

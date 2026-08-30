@@ -116,6 +116,11 @@ func (a *QwenImageAdapter) PrepareSubmit(ctx context.Context, input aigc.Generat
 		parameters["watermark"] = wm.Bool()
 	}
 
+	// Mask
+	if mask := gjson.GetBytes(inputBytes, "mask"); mask.Exists() {
+		parameters["mask"] = mask.Value()
+	}
+
 	_, endpoint, defaultPE, defaultET := a.cfgFunc()
 
 	// Prompt extend
