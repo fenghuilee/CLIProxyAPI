@@ -246,6 +246,9 @@ func (a *QwenImageAdapter) ParsePoll(ctx context.Context, resp aigc.GenerationEx
 	switch taskStatus {
 	case "SUCCEEDED":
 		artifacts := extractQwenArtifacts(resp.Body)
+		if len(artifacts) == 0 {
+			return aigc.GenerationPollResult{}, fmt.Errorf("not a qwen-image poll response")
+		}
 		return utils.BuildCompletedPollResult(artifacts), nil
 	case "FAILED":
 		return utils.BuildFailedPollResultFromRaw("qwen-image", 200, resp.Body, nil), nil

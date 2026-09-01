@@ -8,6 +8,7 @@ import (
 // Config defines the unified configuration for all AIGC adapters.
 type Config struct {
 	QwenImage          QwenImageConfig          `yaml:"qwen-image"`
+	QwenWan            QwenWanConfig            `yaml:"qwen-wan"`
 	VolcengineSeedance VolcengineSeedanceConfig `yaml:"volcengine-seedance"`
 	VolcengineSeedream VolcengineSeedreamConfig `yaml:"volcengine-seedream"`
 	OpenAICompat       OpenAICompatConfig       `yaml:"openai-compat"`
@@ -20,6 +21,14 @@ type QwenImageConfig struct {
 	Endpoint       string   `yaml:"endpoint,omitempty"`
 	PromptExtend   *bool    `yaml:"prompt-extend,omitempty"`
 	EnableThinking *bool    `yaml:"enable-thinking,omitempty"`
+}
+
+// QwenWanConfig defines configuration for the Alibaba DashScope Wan video generation adapter.
+type QwenWanConfig struct {
+	Enabled      *bool    `yaml:"enabled,omitempty"`
+	Models       []string `yaml:"models,omitempty"`
+	Endpoint     string   `yaml:"endpoint,omitempty"`
+	PromptExtend *bool    `yaml:"prompt-extend,omitempty"`
 }
 
 // VolcengineSeedanceConfig defines configuration for the Volcengine Doubao Seedance video adapter.
@@ -50,6 +59,7 @@ type OpenAICompatConfig struct {
 
 const (
 	defaultQwenEndpoint             = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+	defaultQwenWanEndpoint          = "https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis"
 	defaultQwenTasksBaseURL         = "https://dashscope.aliyuncs.com/api/v1/tasks"
 	defaultVolcengineArkTasksURL    = "/contents/generations/tasks"
 	defaultVolcengineArkImageGenURL = "/images/generations"
@@ -78,6 +88,21 @@ func DefaultConfig() Config {
 			Endpoint:       defaultQwenEndpoint,
 			PromptExtend:   &t,
 			EnableThinking: &t,
+		},
+		QwenWan: QwenWanConfig{
+			Enabled: &t,
+			Models: []string{
+				"alibaba-cn/wan*",
+				"alibaba/wan*",
+				"qwen/wan*",
+				"wan3.0-*",
+				"wan2.1-*",
+				"wanx2.1-*",
+				"wanx2.0-*",
+				"wan-*",
+			},
+			Endpoint:     defaultQwenWanEndpoint,
+			PromptExtend: &t,
 		},
 		VolcengineSeedance: VolcengineSeedanceConfig{
 			Enabled: &t,

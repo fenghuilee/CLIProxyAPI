@@ -238,6 +238,11 @@ func handleRegister(request []byte) []byte {
 				Description: "阿里 DashScope Qwen-Image 生图配置",
 			},
 			{
+				Name:        "qwen-wan",
+				Type:        pluginapi.ConfigFieldTypeObject,
+				Description: "阿里 DashScope Wan 视频生成配置",
+			},
+			{
 				Name:        "volcengine-seedance",
 				Type:        pluginapi.ConfigFieldTypeObject,
 				Description: "火山方舟 Doubao Seedance 视频生成配置",

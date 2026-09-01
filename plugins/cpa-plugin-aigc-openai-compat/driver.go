@@ -53,7 +53,21 @@ func (d *Driver) SetConfig(cfg Config) {
 		return
 	})
 
-	// 2. Volcengine Seedance Video Adapter
+	// 2. Qwen Wan Video Adapter
+	qwenWanAdapter := video.NewQwenWanAdapter(func() (models []string, endpoint string, pe bool) {
+		d.mu.RLock()
+		defer d.mu.RUnlock()
+		c := d.cfg.QwenWan
+		models = c.Models
+		endpoint = c.Endpoint
+		pe = true
+		if c.PromptExtend != nil {
+			pe = *c.PromptExtend
+		}
+		return
+	})
+
+	// 3. Volcengine Seedance Video Adapter
 	seedanceAdapter := video.NewVolcengineSeedanceAdapter(func() (models []string, endpoint string) {
 		d.mu.RLock()
 		defer d.mu.RUnlock()
@@ -61,7 +75,7 @@ func (d *Driver) SetConfig(cfg Config) {
 		return c.Models, c.Endpoint
 	})
 
-	// 3. Volcengine Seedream Image/Layer Adapter
+	// 4. Volcengine Seedream Image/Layer Adapter
 	seedreamAdapter := image.NewVolcengineSeedreamAdapter(func() (models []string, endpoint string) {
 		d.mu.RLock()
 		defer d.mu.RUnlock()
@@ -69,7 +83,7 @@ func (d *Driver) SetConfig(cfg Config) {
 		return c.Models, c.Endpoint
 	})
 
-	// 4. OpenAI Compat Universal Adapter
+	// 5. OpenAI Compat Universal Adapter
 	openaiAdapter := common.NewOpenAICompatAdapter(func() (imgModels, vidModels []string, fallback bool, imgSubmitPath, imgEditPath, vidSubmitPath, vidPollTpl string) {
 		d.mu.RLock()
 		defer d.mu.RUnlock()
@@ -88,6 +102,9 @@ func (d *Driver) SetConfig(cfg Config) {
 	if cfg.QwenImage.Enabled == nil || *cfg.QwenImage.Enabled {
 		order = append(order, qwenAdapter)
 	}
+	if cfg.QwenWan.Enabled == nil || *cfg.QwenWan.Enabled {
+		order = append(order, qwenWanAdapter)
+	}
 	if cfg.VolcengineSeedance.Enabled == nil || *cfg.VolcengineSeedance.Enabled {
 		order = append(order, seedanceAdapter)
 	}
@@ -105,6 +122,7 @@ func (d *Driver) SetConfig(cfg Config) {
 
 	// Always make all adapters available by name for existing provider tasks
 	byName[qwenAdapter.Name()] = qwenAdapter
+	byName[qwenWanAdapter.Name()] = qwenWanAdapter
 	byName[seedanceAdapter.Name()] = seedanceAdapter
 	byName[seedreamAdapter.Name()] = seedreamAdapter
 	byName[openaiAdapter.Name()] = openaiAdapter
