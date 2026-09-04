@@ -1,14 +1,27 @@
 .PHONY: all build test deploy clean
 
 VERSION ?= $(shell date "+v%Y.%-m.%-d (build %H:%M:%S)")
-PLUGIN_NAME := aigc-openai-compat.so
-HEADER_NAME := aigc-openai-compat.h
+# 目标操作系统与架构检测
+GOOS ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
 
-LOCAL_DIR   ?= ../../bin/plugins/linux/amd64
+ifeq ($(GOOS),darwin)
+    EXT := .dylib
+else ifeq ($(GOOS),windows)
+    EXT := .dll
+else
+    EXT := .so
+endif
+
+PLUGIN_BASE := aigc-openai-compat
+PLUGIN_NAME := $(PLUGIN_BASE)$(EXT)
+HEADER_NAME := $(PLUGIN_BASE).h
+
+LOCAL_DIR   ?= ../../bin/plugins/$(GOOS)/$(GOARCH)
 REMOTE_USER ?= root
 REMOTE_HOST ?= 192.168.18.249
 REMOTE_DIR  ?= /data/compose/cliproxyapi/cpa/plugins/linux/amd64
-TARGET_NAME := aigc-openai-compat.so
+TARGET_NAME := $(PLUGIN_NAME)
 
 LDFLAGS := -X 'main.pluginVersion=$(VERSION)'
 
@@ -34,4 +47,4 @@ deploy: build
 
 clean:
 	@echo "==> Cleaning build artifacts..."
-	rm -f $(PLUGIN_NAME) $(HEADER_NAME)
+	rm -f $(PLUGIN_BASE).so $(PLUGIN_BASE).dylib $(PLUGIN_BASE).dll $(PLUGIN_BASE).h

@@ -2,15 +2,28 @@
 
 # 获取当前时间作为版本号 (格式: vyyyy.m.d (build hh:ii:ss)，例如 v2026.8.18 (build 09:14:19))
 VERSION ?= $(shell date "+v%Y.%-m.%-d (build %H:%M:%S)")
-PLUGIN_NAME := data-uri-to-tos.so
-HEADER_NAME := data-uri-to-tos.h
+# 目标操作系统与架构检测
+GOOS ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
+
+ifeq ($(GOOS),darwin)
+    EXT := .dylib
+else ifeq ($(GOOS),windows)
+    EXT := .dll
+else
+    EXT := .so
+endif
+
+PLUGIN_BASE := data-uri-to-tos
+PLUGIN_NAME := $(PLUGIN_BASE)$(EXT)
+HEADER_NAME := $(PLUGIN_BASE).h
 
 # 部署目标配置
-LOCAL_DIR   ?= ../../bin/plugins/linux/amd64
+LOCAL_DIR   ?= ../../bin/plugins/$(GOOS)/$(GOARCH)
 REMOTE_USER ?= root
 REMOTE_HOST ?= 192.168.18.249
 REMOTE_DIR  ?= /data/compose/cliproxyapi/cpa/plugins/linux/amd64
-TARGET_NAME := data-uri-to-tos.so
+TARGET_NAME := $(PLUGIN_NAME)
 
 LDFLAGS := -X 'main.pluginVersion=$(VERSION)'
 
@@ -40,4 +53,4 @@ deploy: build
 ## 清理编译产物
 clean:
 	@echo "==> Cleaning build artifacts..."
-	rm -f $(PLUGIN_NAME) $(HEADER_NAME)
+	rm -f $(PLUGIN_BASE).so $(PLUGIN_BASE).dylib $(PLUGIN_BASE).dll $(PLUGIN_BASE).h
