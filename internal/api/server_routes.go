@@ -71,8 +71,7 @@ func (s *Server) setupRoutes() {
 		v1.POST("/videos/generations", openaiHandlers.XAIVideosGenerations)
 		v1.POST("/videos/edits", openaiHandlers.XAIVideosEdits)
 		v1.POST("/videos/extensions", openaiHandlers.XAIVideosExtensions)
-		v1.GET("/videos/:request_id", s.unifiedVideoRetrieveHandler(openaiHandlers))
-		v1.GET("/videos/:request_id/content", s.unifiedVideoContentHandler(openaiHandlers))
+		v1.GET("/videos/:request_id", openaiHandlers.XAIVideosRetrieve)
 		v1.POST("/messages", claudeCodeHandlers.ClaudeMessages)
 		v1.POST("/messages/count_tokens", claudeCodeHandlers.ClaudeCountTokens)
 		v1.GET("/responses", openaiResponsesHandlers.ResponsesWebsocket)
@@ -104,8 +103,8 @@ func (s *Server) setupRoutes() {
 	openaiV1.Use(AuthMiddleware(s.accessManager))
 	{
 		openaiV1.POST("/videos", openaiHandlers.VideosCreate)
-		openaiV1.GET("/videos/:video_id/content", s.unifiedVideoContentHandler(openaiHandlers))
-		openaiV1.GET("/videos/:video_id", s.unifiedVideoRetrieveHandler(openaiHandlers))
+		openaiV1.GET("/videos/:video_id/content", openaiHandlers.VideosContent)
+		openaiV1.GET("/videos/:video_id", openaiHandlers.VideosRetrieve)
 	}
 
 	// AIGC Asynchronous Content Generation Lifecycle API routes
@@ -632,68 +631,6 @@ func (s *Server) unifiedModelsHandler(openaiHandler *openai.OpenAIAPIHandler, cl
 		} else {
 			openaiHandler.OpenAIModels(c)
 		}
-	}
-}
-
-func (s *Server) unifiedVideoContentHandler(openaiHandler *openai.OpenAIAPIHandler) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		reqID := strings.TrimSpace(c.Param("request_id"))
-		if reqID == "" {
-			reqID = strings.TrimSpace(c.Param("video_id"))
-		}
-		if reqID == "" {
-			reqID = strings.TrimSpace(c.Param("generation_id"))
-		}
-		if coordinator := s.getAIGCCoordinator(); coordinator != nil && reqID != "" {
-			if gen, err := coordinator.GetGeneration(c.Request.Context(), reqID); err == nil && gen.ID != "" {
-				s.handleAIGCAsyncGetContent(c)
-				return
-			}
-		}
-		if openaiHandler != nil {
-			openaiHandler.VideosContent(c)
-			return
-		}
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": gin.H{
-				"message": "video content not found",
-				"type":    "invalid_request_error",
-				"code":    "content_not_found",
-			},
-		})
-	}
-}
-
-func (s *Server) unifiedVideoRetrieveHandler(openaiHandler *openai.OpenAIAPIHandler) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		reqID := strings.TrimSpace(c.Param("request_id"))
-		if reqID == "" {
-			reqID = strings.TrimSpace(c.Param("video_id"))
-		}
-		if reqID == "" {
-			reqID = strings.TrimSpace(c.Param("generation_id"))
-		}
-		if coordinator := s.getAIGCCoordinator(); coordinator != nil && reqID != "" {
-			if gen, err := coordinator.GetGeneration(c.Request.Context(), reqID); err == nil && gen.ID != "" {
-				s.handleAIGCAsyncGet(c)
-				return
-			}
-		}
-		if openaiHandler != nil {
-			if c.Param("request_id") != "" {
-				openaiHandler.XAIVideosRetrieve(c)
-			} else {
-				openaiHandler.VideosRetrieve(c)
-			}
-			return
-		}
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": gin.H{
-				"message": "video not found",
-				"type":    "invalid_request_error",
-				"code":    "video_not_found",
-			},
-		})
 	}
 }
 

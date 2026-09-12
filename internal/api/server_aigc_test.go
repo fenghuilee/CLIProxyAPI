@@ -228,27 +228,7 @@ func TestAIGCVideoEndpoints(t *testing.T) {
 		t.Errorf("Location = %q, want https://example.com/last_frame.png", loc)
 	}
 
-	// 2.4 Verify standard /v1/videos/:request_id/content and /v1/videos/:request_id
-	v1ContentReq := httptest.NewRequest(http.MethodGet, "/v1/videos/"+createResp.ID+"/content", nil)
-	v1ContentReq.Header.Set("Authorization", "Bearer test-key")
-	v1ContentRR := httptest.NewRecorder()
-	server.engine.ServeHTTP(v1ContentRR, v1ContentReq)
-	if v1ContentRR.Code != http.StatusFound {
-		t.Fatalf("GET /v1/videos/:id/content code = %d, want %d, body = %s", v1ContentRR.Code, http.StatusFound, v1ContentRR.Body.String())
-	}
-	if loc := v1ContentRR.Header().Get("Location"); loc != "https://example.com/video.mp4" {
-		t.Errorf("v1 Location = %q, want https://example.com/video.mp4", loc)
-	}
-
-	v1GetReq := httptest.NewRequest(http.MethodGet, "/v1/videos/"+createResp.ID, nil)
-	v1GetReq.Header.Set("Authorization", "Bearer test-key")
-	v1GetRR := httptest.NewRecorder()
-	server.engine.ServeHTTP(v1GetRR, v1GetReq)
-	if v1GetRR.Code != http.StatusOK {
-		t.Fatalf("GET /v1/videos/:id code = %d, want %d, body = %s", v1GetRR.Code, http.StatusOK, v1GetRR.Body.String())
-	}
-
-	// 2.5 Verify raw output[0].uri fallback extraction
+	// 2.4 Verify raw output[0].uri fallback extraction
 	store.mu.Lock()
 	gRaw := store.generations[createResp.ID]
 	gRaw.Artifacts = nil
