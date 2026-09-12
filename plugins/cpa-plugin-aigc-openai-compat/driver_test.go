@@ -556,6 +556,30 @@ func TestDriver_VolcengineSeedanceFlow(t *testing.T) {
 	if pollRes.Artifacts[0].ArtifactType != "output_video" || pollRes.Artifacts[0].URI != "https://tos.volces.com/drone_1080p.mp4" {
 		t.Fatalf("Artifact[0] = %+v", pollRes.Artifacts[0])
 	}
+
+	// Test Ark output[0].uri format
+	arkPollResp := aigc.GenerationExecutionResponse{
+		StatusCode: http.StatusOK,
+		Body: []byte(`{
+			"id": "cgt-20260825102931-gd2rv",
+			"status": "succeeded",
+			"output": [
+				{
+					"uri": "https://ark-content.tos-cn-beijing.volces.com/drone_tos.mp4"
+				}
+			]
+		}`),
+	}
+	arkPollRes, errArkPoll := driver.ParsePoll(ctx, arkPollResp)
+	if errArkPoll != nil {
+		t.Fatalf("ParsePoll error: %v", errArkPoll)
+	}
+	if arkPollRes.Status != aigc.StatusSucceeded {
+		t.Fatalf("Status = %v, want Succeeded", arkPollRes.Status)
+	}
+	if len(arkPollRes.Artifacts) != 1 || arkPollRes.Artifacts[0].URI != "https://ark-content.tos-cn-beijing.volces.com/drone_tos.mp4" {
+		t.Fatalf("arkPollRes.Artifacts = %+v, want drone_tos.mp4", arkPollRes.Artifacts)
+	}
 }
 
 func TestDriver_VolcengineSeedanceFlow_StandardOpenAIAndMultiReference(t *testing.T) {

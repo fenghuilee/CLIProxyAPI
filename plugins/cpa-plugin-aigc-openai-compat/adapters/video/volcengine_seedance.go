@@ -215,8 +215,16 @@ func (a *VolcengineSeedanceAdapter) ParsePoll(ctx context.Context, resp aigc.Gen
 	}
 
 	state := strings.ToLower(firstString(resp.Body, "status", "state"))
-	videoURL := firstString(resp.Body, "content.video_url", "content.video_url.url", "video_url", "download_url", "result.video_url")
-	lastFrameURL := firstString(resp.Body, "content.last_frame_url", "last_frame_url", "result.last_frame_url")
+	videoURL := firstString(resp.Body,
+		"content.video_url", "content.video_url.url",
+		"output.0.uri", "output.0.url", "output.video_url",
+		"data.0.url", "data.0.uri",
+		"video_url", "download_url", "result.video_url",
+	)
+	lastFrameURL := firstString(resp.Body,
+		"content.last_frame_url", "last_frame_url", "result.last_frame_url",
+		"output.1.uri", "output.1.url",
+	)
 
 	if state == "" && videoURL == "" {
 		return aigc.GenerationPollResult{}, fmt.Errorf("not a seedance poll response")

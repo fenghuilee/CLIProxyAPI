@@ -241,6 +241,16 @@ func formatAIGCResponse(gen aigc.ContentGeneration) aigcResponse {
 			}
 		}
 	}
+	if len(resp.Artifacts) == 0 && len(gen.Output) > 0 {
+		if u := extractAIGCDownloadURL(gen, ""); u != "" {
+			resp.Artifacts = []aigcArtifact{
+				{
+					Type: string(gen.Kind),
+					URL:  u,
+				},
+			}
+		}
+	}
 	if len(gen.Output) > 0 {
 		resp.Usage = normalizeImageUsage(gen.Output)
 	}
@@ -359,6 +369,15 @@ func (s *Server) handleAIGCAsyncGet(c *gin.Context) {
 
 	genID := strings.TrimSpace(c.Param("generation_id"))
 	if genID == "" {
+		genID = strings.TrimSpace(c.Param("request_id"))
+	}
+	if genID == "" {
+		genID = strings.TrimSpace(c.Param("video_id"))
+	}
+	if genID == "" {
+		genID = strings.TrimSpace(c.Param("id"))
+	}
+	if genID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing generation_id parameter"})
 		return
 	}
@@ -395,6 +414,15 @@ func (s *Server) handleAIGCAsyncGetContent(c *gin.Context) {
 
 	genID := strings.TrimSpace(c.Param("generation_id"))
 	if genID == "" {
+		genID = strings.TrimSpace(c.Param("request_id"))
+	}
+	if genID == "" {
+		genID = strings.TrimSpace(c.Param("video_id"))
+	}
+	if genID == "" {
+		genID = strings.TrimSpace(c.Param("id"))
+	}
+	if genID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing generation_id parameter"})
 		return
 	}
@@ -420,22 +448,172 @@ func (s *Server) handleAIGCAsyncGetContent(c *gin.Context) {
 	}
 
 	if gen.Status != aigc.StatusSucceeded {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "generation is not completed", "status": gen.Status})
+		code := "generation_in_progress"
+		if gen.Status == aigc.StatusFailed {
+			code = "generation_failed"
+		} else if gen.Status == aigc.StatusCanceled {
+			code = "generation_canceled"
+		}
+		errMsg := fmt.Sprintf("generation is not completed (current status: %s)", gen.Status)
+		if gen.ErrorMessage != "" {
+			errMsg = fmt.Sprintf("generation %s: %s", gen.Status, gen.ErrorMessage)
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"message": errMsg,
+				"type":    "invalid_request_error",
+				"code":    code,
+			},
+		})
 		return
 	}
 
-	// Try extracting artifact URL
-	var artifacts []aigcArtifact
+	variant := strings.ToLower(strings.TrimSpace(c.Query("variant")))
+	targetURL := extractAIGCDownloadURL(gen, variant)
+	if targetURL == "" {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": gin.H{
+				"message": "no downloadable content found for completed generation",
+				"type":    "invalid_request_error",
+				"code":    "content_not_found",
+			},
+		})
+		return
+	}
+
+	// If the extracted target is an inline data URI, decode and return binary directly
+	if strings.HasPrefix(targetURL, "data:") {
+		commaIdx := strings.Index(targetURL, ",")
+		if commaIdx != -1 {
+			header := targetURL[:commaIdx]
+			base64Data := targetURL[commaIdx+1:]
+			mimeType := "application/octet-stream"
+			if semiIdx := strings.Index(header, ";"); semiIdx != -1 && strings.HasPrefix(header, "data:") {
+				mimeType = strings.TrimPrefix(header[:semiIdx], "data:")
+			}
+			decoded, errDec := base64.StdEncoding.DecodeString(base64Data)
+			if errDec == nil {
+				c.Data(http.StatusOK, mimeType, decoded)
+				return
+			}
+		}
+	}
+
+	c.Redirect(http.StatusFound, targetURL)
+}
+
+func extractAIGCDownloadURL(gen aigc.ContentGeneration, variant string) string {
+	variant = strings.ToLower(strings.TrimSpace(variant))
+
+	// 1. Scan gen.Artifacts
+	if len(gen.Artifacts) > 0 {
+		if variant != "" && variant != "video" {
+			for _, a := range gen.Artifacts {
+				if strings.EqualFold(a.ArtifactType, variant) || (variant == "thumbnail" && strings.EqualFold(a.ArtifactType, "last_frame")) {
+					if strings.TrimSpace(a.URI) != "" {
+						return strings.TrimSpace(a.URI)
+					}
+				}
+			}
+		}
+		for _, a := range gen.Artifacts {
+			t := strings.ToLower(strings.TrimSpace(a.ArtifactType))
+			if t == "output_video" || t == "video" || t == "output_image" || t == "image" {
+				if strings.TrimSpace(a.URI) != "" {
+					return strings.TrimSpace(a.URI)
+				}
+			}
+		}
+		for _, a := range gen.Artifacts {
+			if strings.TrimSpace(a.URI) != "" {
+				return strings.TrimSpace(a.URI)
+			}
+		}
+	}
+
+	// 2. Scan gen.Output as []aigc.ContentGenerationArtifact
 	if len(gen.Output) > 0 {
-		_ = json.Unmarshal(gen.Output, &artifacts)
+		var rawArts []aigc.ContentGenerationArtifact
+		if err := json.Unmarshal(gen.Output, &rawArts); err == nil && len(rawArts) > 0 {
+			if variant != "" && variant != "video" {
+				for _, a := range rawArts {
+					if strings.EqualFold(a.ArtifactType, variant) || (variant == "thumbnail" && strings.EqualFold(a.ArtifactType, "last_frame")) {
+						if strings.TrimSpace(a.URI) != "" {
+							return strings.TrimSpace(a.URI)
+						}
+					}
+				}
+			}
+			for _, a := range rawArts {
+				t := strings.ToLower(strings.TrimSpace(a.ArtifactType))
+				if t == "output_video" || t == "video" || t == "output_image" || t == "image" {
+					if strings.TrimSpace(a.URI) != "" {
+						return strings.TrimSpace(a.URI)
+					}
+				}
+			}
+			for _, a := range rawArts {
+				if strings.TrimSpace(a.URI) != "" {
+					return strings.TrimSpace(a.URI)
+				}
+			}
+		}
+
+		// 3. Scan gen.Output as []aigcArtifact (having url field)
+		var simpleArts []aigcArtifact
+		if err := json.Unmarshal(gen.Output, &simpleArts); err == nil && len(simpleArts) > 0 {
+			if variant != "" && variant != "video" {
+				for _, a := range simpleArts {
+					if strings.EqualFold(a.Type, variant) || (variant == "thumbnail" && strings.EqualFold(a.Type, "last_frame")) {
+						if strings.TrimSpace(a.URL) != "" {
+							return strings.TrimSpace(a.URL)
+						}
+					}
+				}
+			}
+			for _, a := range simpleArts {
+				if strings.TrimSpace(a.URL) != "" {
+					return strings.TrimSpace(a.URL)
+				}
+			}
+		}
+
+		// 4. Defensive sniffing with gjson for upstream formats (Volcengine Ark TOS, DashScope, OpenAI, etc.)
+		if variant == "thumbnail" || variant == "last_frame" {
+			if u := firstGJSONString(gen.Output, "content.last_frame_url", "last_frame_url", "result.last_frame_url", "thumbnail_url", "output.1.uri"); u != "" {
+				return u
+			}
+		}
+
+		if u := firstGJSONString(gen.Output,
+			"output.0.uri", // Volcengine Ark TOS output
+			"output.0.url",
+			"output.video_url",
+			"content.video_url.url",
+			"content.video_url",
+			"data.0.url", // OpenAI standard
+			"data.0.uri",
+			"video_url",
+			"download_url",
+			"result.video_url",
+			"url",
+			"0.uri",
+			"0.url",
+		); u != "" {
+			return u
+		}
 	}
 
-	if len(artifacts) > 0 && artifacts[0].URL != "" {
-		c.Redirect(http.StatusFound, artifacts[0].URL)
-		return
-	}
+	return ""
+}
 
-	c.JSON(http.StatusOK, gin.H{"id": gen.ID, "output": gen.Output})
+func firstGJSONString(body []byte, paths ...string) string {
+	for _, p := range paths {
+		if val := strings.TrimSpace(gjson.GetBytes(body, p).String()); val != "" {
+			return val
+		}
+	}
+	return ""
 }
 
 func (s *Server) handleAIGCAsyncCancel(c *gin.Context) {
@@ -446,6 +624,15 @@ func (s *Server) handleAIGCAsyncCancel(c *gin.Context) {
 	}
 
 	genID := strings.TrimSpace(c.Param("generation_id"))
+	if genID == "" {
+		genID = strings.TrimSpace(c.Param("request_id"))
+	}
+	if genID == "" {
+		genID = strings.TrimSpace(c.Param("video_id"))
+	}
+	if genID == "" {
+		genID = strings.TrimSpace(c.Param("id"))
+	}
 	if genID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing generation_id parameter"})
 		return

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -68,7 +69,9 @@ func (s *testAIGCStore) Patch(ctx context.Context, req aigc.GenerationPatchReque
 	for k, v := range req.Set {
 		switch k {
 		case "status":
-			gen.Status = v.(aigc.GenerationStatus)
+			if gen.Status != aigc.StatusSucceeded {
+				gen.Status = v.(aigc.GenerationStatus)
+			}
 		case "stage":
 			gen.Stage = v.(aigc.GenerationStage)
 		case "progress":
@@ -199,6 +202,87 @@ func TestAIGCVideoEndpoints(t *testing.T) {
 	}
 	if len(getArtifactsResp.Artifacts) != 2 || getArtifactsResp.Artifacts[0].Type != "output_video" || getArtifactsResp.Artifacts[1].Type != "last_frame" {
 		t.Errorf("unexpected artifacts response: %+v", getArtifactsResp.Artifacts)
+	}
+
+	// 2.2 Verify /content endpoint returns 302 redirect with Location
+	contentReq := httptest.NewRequest(http.MethodGet, "/aigc/v1/videos/"+createResp.ID+"/content", nil)
+	contentReq.Header.Set("Authorization", "Bearer test-key")
+	contentRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(contentRR, contentReq)
+	if contentRR.Code != http.StatusFound {
+		t.Fatalf("GET /aigc/v1/videos/:id/content code = %d, want %d, body = %s", contentRR.Code, http.StatusFound, contentRR.Body.String())
+	}
+	if loc := contentRR.Header().Get("Location"); loc != "https://example.com/video.mp4" {
+		t.Errorf("Location = %q, want https://example.com/video.mp4", loc)
+	}
+
+	// 2.3 Verify /content with variant=last_frame
+	frameReq := httptest.NewRequest(http.MethodGet, "/aigc/v1/videos/"+createResp.ID+"/content?variant=last_frame", nil)
+	frameReq.Header.Set("Authorization", "Bearer test-key")
+	frameRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(frameRR, frameReq)
+	if frameRR.Code != http.StatusFound {
+		t.Fatalf("GET /aigc/v1/videos/:id/content?variant=last_frame code = %d, want %d", frameRR.Code, http.StatusFound)
+	}
+	if loc := frameRR.Header().Get("Location"); loc != "https://example.com/last_frame.png" {
+		t.Errorf("Location = %q, want https://example.com/last_frame.png", loc)
+	}
+
+	// 2.4 Verify standard /v1/videos/:request_id/content and /v1/videos/:request_id
+	v1ContentReq := httptest.NewRequest(http.MethodGet, "/v1/videos/"+createResp.ID+"/content", nil)
+	v1ContentReq.Header.Set("Authorization", "Bearer test-key")
+	v1ContentRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(v1ContentRR, v1ContentReq)
+	if v1ContentRR.Code != http.StatusFound {
+		t.Fatalf("GET /v1/videos/:id/content code = %d, want %d, body = %s", v1ContentRR.Code, http.StatusFound, v1ContentRR.Body.String())
+	}
+	if loc := v1ContentRR.Header().Get("Location"); loc != "https://example.com/video.mp4" {
+		t.Errorf("v1 Location = %q, want https://example.com/video.mp4", loc)
+	}
+
+	v1GetReq := httptest.NewRequest(http.MethodGet, "/v1/videos/"+createResp.ID, nil)
+	v1GetReq.Header.Set("Authorization", "Bearer test-key")
+	v1GetRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(v1GetRR, v1GetReq)
+	if v1GetRR.Code != http.StatusOK {
+		t.Fatalf("GET /v1/videos/:id code = %d, want %d, body = %s", v1GetRR.Code, http.StatusOK, v1GetRR.Body.String())
+	}
+
+	// 2.5 Verify raw output[0].uri fallback extraction
+	store.mu.Lock()
+	gRaw := store.generations[createResp.ID]
+	gRaw.Artifacts = nil
+	gRaw.Output = []byte(`{"output":[{"uri":"https://tos.volces.com/ark_video.mp4"}]}`)
+	store.generations[createResp.ID] = gRaw
+	store.mu.Unlock()
+
+	rawContentReq := httptest.NewRequest(http.MethodGet, "/aigc/v1/videos/"+createResp.ID+"/content", nil)
+	rawContentReq.Header.Set("Authorization", "Bearer test-key")
+	rawContentRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(rawContentRR, rawContentReq)
+	if rawContentRR.Code != http.StatusFound {
+		t.Fatalf("GET /aigc/v1/videos/:id/content with raw output code = %d, want %d, body = %s", rawContentRR.Code, http.StatusFound, rawContentRR.Body.String())
+	}
+	if loc := rawContentRR.Header().Get("Location"); loc != "https://tos.volces.com/ark_video.mp4" {
+		t.Errorf("raw output Location = %q, want https://tos.volces.com/ark_video.mp4", loc)
+	}
+
+	// 2.6 Verify running state returns 400 with generation_in_progress
+	store.mu.Lock()
+	gRunning := store.generations[createResp.ID]
+	gRunning.Status = aigc.StatusRunning
+	store.generations[createResp.ID] = gRunning
+	store.mu.Unlock()
+
+	runningReq := httptest.NewRequest(http.MethodGet, "/aigc/v1/videos/"+createResp.ID+"/content", nil)
+	runningReq.Header.Set("Authorization", "Bearer test-key")
+	runningRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(runningRR, runningReq)
+	if runningRR.Code != http.StatusBadRequest {
+		t.Fatalf("GET /aigc/v1/videos/:id/content running status = %d, want %d", runningRR.Code, http.StatusBadRequest)
+	}
+	if !strings.Contains(runningRR.Body.String(), "generation_in_progress") {
+		t.Errorf("running body = %s, want generation_in_progress", runningRR.Body.String())
 	}
 
 	// 3. Cancel video generation

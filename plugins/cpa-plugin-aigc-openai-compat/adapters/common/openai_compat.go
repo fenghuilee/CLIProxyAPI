@@ -369,11 +369,13 @@ func extractOpenAICompatArtifacts(body []byte) []aigc.ContentGenerationArtifact 
 		}
 	}
 
-	// 2. Check direct video_url / url
+	// 2. Check direct video_url / url / output[0].uri
 	if len(artifacts) == 0 {
-		if videoURL := firstString(body, "video_url", "output.video_url", "result.video_url"); videoURL != "" {
+		if videoURL := firstString(body, "output.0.uri", "output.0.url", "output.video_url", "video_url", "result.video_url"); videoURL != "" && (strings.Contains(videoURL, ".mp4") || strings.Contains(videoURL, "video") || (!strings.HasSuffix(videoURL, ".png") && !strings.HasSuffix(videoURL, ".jpg") && !strings.HasSuffix(videoURL, ".jpeg") && !strings.HasSuffix(videoURL, ".webp"))) {
 			artifacts = append(artifacts, utils.CreateArtifact("output_video", "openai-compat", videoURL, "video/mp4", 0, nil))
-		} else if u := firstString(body, "url"); u != "" {
+		} else if videoURL := firstString(body, "video_url", "output.video_url", "result.video_url"); videoURL != "" {
+			artifacts = append(artifacts, utils.CreateArtifact("output_video", "openai-compat", videoURL, "video/mp4", 0, nil))
+		} else if u := firstString(body, "output.0.uri", "output.0.url", "url"); u != "" {
 			artifacts = append(artifacts, utils.ProcessImageArtifact("output_image", "openai-compat", u, "", nil))
 		} else if b64 := firstString(body, "b64_json"); b64 != "" {
 			artifacts = append(artifacts, utils.ProcessImageArtifact("output_image", "openai-compat", "", b64, nil))
