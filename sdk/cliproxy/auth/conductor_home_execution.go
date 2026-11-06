@@ -280,6 +280,11 @@ func (m *Manager) executeHomeOnce(ctx context.Context, providers []string, req c
 			m.reportHomeResult(execCtx, result, preparedAuth)
 			roundTiming.Observe(errExecute)
 			lastErr = errExecute
+			if single, _ := execOpts.Metadata["aigc_single_attempt"].(bool); single {
+				releaseAttempt()
+				selection.End("request_stopped")
+				return cliproxyexecutor.Response{}, wrapRequestStopError(errExecute)
+			}
 			if okAction {
 				if isRequestScopedStop(action, okAction) {
 					errExecute = annotateTrustedRetryAfterByHint(errExecute)

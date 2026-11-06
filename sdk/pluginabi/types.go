@@ -10,7 +10,7 @@ const (
 	// Version 3 omits OriginalRequest/RequestBody on payload stream chunks
 	// (ChunkIndex >= 0); those fields remain on StreamChunkHeaderInitIndex only.
 	// Plugins that still need per-chunk request bodies should keep schema_version < 3.
-	// Version 4 adds upstream WebSocket response event observation.
+	// Version 4 adds upstream WebSocket response event observation and Content Generation Lifecycle (Store, Mutator, Driver, Observer).
 	// Version 5 omits HistoryChunks on payload stream chunks (ChunkIndex >= 0);
 	// those fields remain on StreamChunkHeaderInitIndex only. Plugins that still need
 	// per-chunk history chunks should keep schema_version < 5.
@@ -62,6 +62,8 @@ const (
 	// SchemaVersionMultiAuthProviders is the first schema version where a plugin
 	// may register multiple auth provider identifiers.
 	SchemaVersionMultiAuthProviders uint32 = 10
+	// SchemaVersionAIGC is the first schema version that supports Content Generation Lifecycle.
+	SchemaVersionAIGC uint32 = 4
 )
 
 const (
@@ -126,6 +128,27 @@ const (
 	MethodQuotaFetch      = "quota.fetch"
 	MethodQuotaReset      = "quota.reset"
 
+	MethodContentGenerationStoreCreate        = "content_generation.store.create"
+	MethodContentGenerationStoreGet           = "content_generation.store.get"
+	MethodContentGenerationStorePatch         = "content_generation.store.patch"
+	MethodContentGenerationStoreClaim         = "content_generation.store.claim"
+	MethodContentGenerationStoreRelease       = "content_generation.store.release"
+	MethodContentGenerationStoreDeleteExpired = "content_generation.store.delete_expired"
+
+	MethodContentGenerationMutate = "content_generation.mutate"
+	MethodContentGenerationEvent  = "content_generation.event"
+
+	MethodContentGenerationDriverSupports      = "content_generation.driver.supports"
+	MethodContentGenerationDriverPrepareSubmit = "content_generation.driver.prepare_submit"
+	MethodContentGenerationDriverParseSubmit   = "content_generation.driver.parse_submit"
+	MethodContentGenerationDriverPreparePoll   = "content_generation.driver.prepare_poll"
+	MethodContentGenerationDriverParsePoll     = "content_generation.driver.parse_poll"
+	MethodContentGenerationDriverPrepareCancel = "content_generation.driver.prepare_cancel"
+	MethodContentGenerationDriverParseCancel   = "content_generation.driver.parse_cancel"
+
+	MethodDatabaseProviderQuery = "database_provider.query"
+	MethodDatabaseProviderExec  = "database_provider.exec"
+
 	MethodHostHTTPDo             = "host.http.do"
 	MethodHostHTTPDoStream       = "host.http.do_stream"
 	MethodHostHTTPOperationOpen  = "host.http.operation_open"
@@ -145,6 +168,8 @@ const (
 	MethodHostAuthSave           = "host.auth.save"
 	MethodHostAuthModels         = "host.auth.models"
 	MethodHostAffinityLookup     = "host.affinity.lookup"
+	MethodHostDatabaseQuery      = "host.db.query"
+	MethodHostDatabaseExec       = "host.db.exec"
 
 	MethodHostRoutingResetCooldown = "host.routing.reset_cooldown"
 )

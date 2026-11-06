@@ -636,6 +636,10 @@ func (m *Manager) executeMixedOnce(ctx context.Context, providers []string, req 
 				if hasUpstreamExecutionAttempt(errExec) {
 					upstreamErr = errExec
 				}
+				if single, _ := execOpts.Metadata["aigc_single_attempt"].(bool); single {
+					m.MarkResult(execCtx, Result{AuthID: auth.ID, Provider: provider, Model: resultModel, RouteModel: routeModel, Error: resultErrorFromError(errExec), Options: execOpts})
+					return cliproxyexecutor.Response{}, wrapRequestStopError(errExec)
+				}
 				if errCtx := execCtx.Err(); errCtx != nil {
 					return cliproxyexecutor.Response{}, errCtx
 				}

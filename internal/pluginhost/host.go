@@ -1480,7 +1480,12 @@ func validPlugin(plugin pluginapi.Plugin) bool {
 		caps.UsagePlugin != nil ||
 		caps.CommandLinePlugin != nil ||
 		caps.ManagementAPI != nil ||
-		caps.QuotaProvider != nil
+		caps.QuotaProvider != nil ||
+		caps.ContentGenerationStore != nil ||
+		caps.ContentGenerationMutator != nil ||
+		caps.ContentGenerationDriver != nil ||
+		caps.ContentGenerationObserver != nil ||
+		caps.DatabaseProvider != nil
 }
 
 func typeName(v any) string {

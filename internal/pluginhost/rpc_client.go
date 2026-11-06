@@ -244,6 +244,21 @@ func registerRPCPlugin(ctx context.Context, host *Host, id string, client plugin
 			identifier:       identifier,
 		}
 	}
+	if resp.Capabilities.ContentGenerationStore {
+		plugin.Capabilities.ContentGenerationStore = rpcContentGenerationStore{rpcPluginAdapter: adapter}
+	}
+	if resp.Capabilities.ContentGenerationMutator {
+		plugin.Capabilities.ContentGenerationMutator = rpcContentGenerationMutator{rpcPluginAdapter: adapter}
+	}
+	if resp.Capabilities.ContentGenerationDriver {
+		plugin.Capabilities.ContentGenerationDriver = rpcContentGenerationDriver{rpcPluginAdapter: adapter}
+	}
+	if resp.Capabilities.ContentGenerationObserver {
+		plugin.Capabilities.ContentGenerationObserver = rpcContentGenerationObserver{rpcPluginAdapter: adapter}
+	}
+	if resp.Capabilities.DatabaseProvider {
+		plugin.Capabilities.DatabaseProvider = rpcDatabaseProvider{rpcPluginAdapter: adapter}
+	}
 	return plugin, nil
 }
 
@@ -758,8 +773,12 @@ func (a *rpcPluginAdapter) deliverUsage(ctx context.Context, record pluginapi.Us
 	if a == nil {
 		return nil
 	}
-	if _, errCall := callPlugin[rpcEmptyResponse](ctx, a.client, pluginabi.MethodUsageHandle, record); errCall != nil {
-		log.Debugf("pluginhost: usage.handle to %s failed: %v", a.id, errCall)
+	callCtx := context.Background()
+	if ctx != nil {
+		callCtx = context.WithoutCancel(ctx)
+	}
+	if _, errCall := callPlugin[rpcEmptyResponse](callCtx, a.client, pluginabi.MethodUsageHandle, record); errCall != nil {
+		log.WithField("plugin_id", a.id).Debugf("pluginhost: usage.handle failed: %v", errCall)
 		return errCall
 	}
 	return nil
@@ -838,4 +857,24 @@ func httpResponseFromPlugin(resp pluginapi.ExecutorHTTPResponse, req *http.Reque
 		Body:       io.NopCloser(bytes.NewReader(bytes.Clone(resp.Body))),
 		Request:    req,
 	}
+}
+
+type rpcDatabaseProvider struct {
+	*rpcPluginAdapter
+}
+
+func (p rpcDatabaseProvider) Query(ctx context.Context, req pluginapi.DatabaseQueryRequest) (pluginapi.DatabaseQueryResponse, error) {
+	resp, errCall := callPlugin[pluginapi.DatabaseQueryResponse](ctx, p.client, pluginabi.MethodDatabaseProviderQuery, req)
+	if errCall != nil {
+		return pluginapi.DatabaseQueryResponse{}, errCall
+	}
+	return resp, nil
+}
+
+func (p rpcDatabaseProvider) Exec(ctx context.Context, req pluginapi.DatabaseExecRequest) (pluginapi.DatabaseExecResponse, error) {
+	resp, errCall := callPlugin[pluginapi.DatabaseExecResponse](ctx, p.client, pluginabi.MethodDatabaseProviderExec, req)
+	if errCall != nil {
+		return pluginapi.DatabaseExecResponse{}, errCall
+	}
+	return resp, nil
 }

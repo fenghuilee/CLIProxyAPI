@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	internallogging "github.com/router-for-me/CLIProxyAPI/v8/internal/logging"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/aigc"
 	coresession "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/session"
 	coreusage "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
 )
@@ -314,6 +315,17 @@ func resolveFail(ctx context.Context, record coreusage.Record, failed bool) fail
 	}
 	if fail.StatusCode <= 0 {
 		fail.StatusCode = 500
+	}
+	if fail.Body == "" {
+		norm := aigc.NormalizeError(record.Provider, fail.StatusCode, nil, nil)
+		errResp, _ := json.Marshal(map[string]any{
+			"error": map[string]any{
+				"message": norm.Message,
+				"type":    norm.Type,
+				"code":    norm.Code,
+			},
+		})
+		fail.Body = string(errResp)
 	}
 	return fail
 }

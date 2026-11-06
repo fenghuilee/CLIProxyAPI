@@ -49,6 +49,9 @@ server:
   # Leave empty to use GITHUB_TOKEN, or unauthenticated requests if neither is set.
   github-token: ""
 
+  # Optional Unix domain socket path for local IPC with h2c.
+  # unix-socket: ""
+
   # IP addresses or CIDRs of proxies allowed to supply forwarded client IP headers.
   # An empty list (the default) does not trust forwarded headers. Restart after changing this setting.
   trusted-proxies: []

@@ -12,7 +12,10 @@ bin/*
 conv/*
 temp/*
 refs/*
-plugins/*
+plugins/**/*.so
+plugins/**/*.dylib
+plugins/**/*.dll
+plugins/**/*.h
 examples/plugin/bin/*
 
 # Storage backends

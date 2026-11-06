@@ -98,6 +98,7 @@ func NewUsageReporter(ctx context.Context, provider, model string, auth *cliprox
 	} else if accessProvider != "" {
 		isNativeKey = usage.IsNativeAccessProvider(accessProvider)
 	}
+	clientIP := ClientIPFromContext(ctx)
 	alias := usage.RequestedModelAliasFromContext(ctx)
 	if alias == "" {
 		alias = model
@@ -127,6 +128,10 @@ func NewUsageReporter(ctx context.Context, provider, model string, auth *cliprox
 	if traceID == "" {
 		traceID = internallogging.GetRequestID(ctx)
 	}
+	source := clientIP
+	if source == "" {
+		source = resolveUsageSource(auth, apiKey)
+	}
 	reporter := &UsageReporter{
 		requestID:       uuid.NewString(),
 		traceID:         traceID,
@@ -141,7 +146,7 @@ func NewUsageReporter(ctx context.Context, provider, model string, auth *cliprox
 		isNativeKey:     isNativeKey,
 		sessionID:       sessionID,
 		parentSessionID: parentSessionID,
-		source:          resolveUsageSource(auth, apiKey),
+		source:          source,
 		authType:        resolveUsageAuthType(auth),
 		reasoning:       usage.ReasoningEffortFromContext(ctx),
 		serviceTier:     usage.ServiceTierFromContext(ctx),
@@ -867,6 +872,25 @@ func AccessProviderFromContext(ctx context.Context) string {
 			return strings.TrimSpace(value.String())
 		default:
 			return strings.TrimSpace(fmt.Sprintf("%v", value))
+		}
+	}
+	return ""
+}
+
+func ClientIPFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	ginCtx, ok := ctx.Value("gin").(*gin.Context)
+	if !ok || ginCtx == nil {
+		return ""
+	}
+	if v, exists := ginCtx.Get("client_ip"); exists && v != nil {
+		return strings.TrimSpace(fmt.Sprint(v))
+	}
+	if ginCtx.Request != nil {
+		if ip := strings.TrimSpace(ginCtx.ClientIP()); ip != "" {
+			return ip
 		}
 	}
 	return ""

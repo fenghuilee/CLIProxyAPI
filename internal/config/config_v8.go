@@ -17,9 +17,11 @@ type legacyConfig Config
 
 type configPath struct{ old, current string }
 
-var v8FieldIndexes = make(map[string][]int)
-var v8StructPaths []configPath
-var v8Paths = buildV8Paths()
+var (
+	v8FieldIndexes = make(map[string][]int)
+	v8StructPaths  []configPath
+	v8Paths        = buildV8Paths()
+)
 
 // Historical spellings are YAML-boundary aliases, not provider runtime fields.
 // The canonical client path wins by presence (including explicit false/null).
@@ -65,30 +67,53 @@ var v8SharedStructPaths = []configPath{
 }
 
 var v8KeyFamilies = []configPath{
-	{"gemini-api-key", "gemini"}, {"interactions-api-key", "interactions"},
-	{"vertex-api-key", "vertex"}, {"codex-api-key", "codex"},
-	{"claude-api-key", "claude"}, {"xai-api-key", "xai"}, {"meta-api-key", "meta"},
+	{"gemini-api-key", "gemini"},
+	{"interactions-api-key", "interactions"},
+	{"vertex-api-key", "vertex"},
+	{"codex-api-key", "codex"},
+	{"claude-api-key", "claude"},
+	{"xai-api-key", "xai"},
+	{"meta-api-key", "meta"},
 	{"openai-compatibility", "openai-compatibility"},
 }
 
 func buildV8Paths() []configPath {
 	prefixes := []configPath{
-		{"host", "server.host"}, {"port", "server.port"}, {"max-request-body-bytes", "server.max-request-body-bytes"}, {"trusted-proxies", "server.trusted-proxies"},
+		{"host", "server.host"},
+		{"port", "server.port"},
+		{"max-request-body-bytes", "server.max-request-body-bytes"},
+		{"trusted-proxies", "server.trusted-proxies"},
 		{"github-token", "server.github-token"},
-		{"tls", "server.tls"}, {"commercial-mode", "server.commercial-mode"}, {"discovery", "server.discovery"}, {"kv-store", "server.kv-store"},
-		{"remote-management", "management"}, {"api-keys", "access.api-keys"},
-		{"credential-concurrency", "credentials.concurrency"}, {"credential-in-flight", "credentials.in-flight"},
+		{"unix-socket", "server.unix-socket"},
+		{"tls", "server.tls"},
+		{"commercial-mode", "server.commercial-mode"},
+		{"discovery", "server.discovery"},
+		{"kv-store", "server.kv-store"},
+		{"remote-management", "management"},
+		{"api-keys", "access.api-keys"},
+		{"credential-concurrency", "credentials.concurrency"},
+		{"credential-in-flight", "credentials.in-flight"},
 		{"force-model-prefix", "routing.force-model-prefix"},
-		{"request-retry", "routing.retry.request-retry"}, {"max-retry-credentials", "routing.retry.max-retry-credentials"},
+		{"request-retry", "routing.retry.request-retry"},
+		{"max-retry-credentials", "routing.retry.max-retry-credentials"},
 		{"max-retry-interval", "routing.retry.max-retry-interval"},
-		{"disable-cooling", "routing.cooldown.disable-cooling"}, {"save-cooldown-status", "routing.cooldown.save-cooldown-status"},
+		{"disable-cooling", "routing.cooldown.disable-cooling"},
+		{"save-cooldown-status", "routing.cooldown.save-cooldown-status"},
 		{"transient-error-cooldown-seconds", "routing.cooldown.transient-error-cooldown-seconds"},
-		{"proxy-url", "requests.proxy-url"}, {"tls-handshake-timeout-seconds", "requests.tls-handshake-timeout-seconds"}, {"passthrough-headers", "requests.passthrough-headers"},
-		{"nonstream-keepalive-interval", "requests.nonstream-keepalive-interval"}, {"streaming", "requests.streaming"}, {"payload", "requests.payload"},
+		{"proxy-url", "requests.proxy-url"},
+		{"tls-handshake-timeout-seconds", "requests.tls-handshake-timeout-seconds"},
+		{"passthrough-headers", "requests.passthrough-headers"},
+		{"nonstream-keepalive-interval", "requests.nonstream-keepalive-interval"},
+		{"streaming", "requests.streaming"},
+		{"payload", "requests.payload"},
 		{"response-compression", "server.response-compression"},
-		{"auth-dir", "oauth.auth-dir"}, {"auth-auto-refresh-workers", "oauth.auth-auto-refresh-workers"},
-		{"oauth-model-alias", "oauth.model-alias"}, {"oauth-excluded-models", "oauth.excluded-models"},
-		{"oauth-request-scoped-errors", "oauth.request-scoped-errors"}, {"oauth-settings", "oauth.settings"}, {"ws-auth", "oauth.providers.aistudio.ws-auth"},
+		{"auth-dir", "oauth.auth-dir"},
+		{"auth-auto-refresh-workers", "oauth.auth-auto-refresh-workers"},
+		{"oauth-model-alias", "oauth.model-alias"},
+		{"oauth-excluded-models", "oauth.excluded-models"},
+		{"oauth-request-scoped-errors", "oauth.request-scoped-errors"},
+		{"oauth-settings", "oauth.settings"},
+		{"ws-auth", "oauth.providers.aistudio.ws-auth"},
 		{"codex.disable-codex-cloaking", "upstream.codex.disable-codex-cloaking"},
 		{"codex.stream-bootstrap-buffering", "upstream.codex.stream-bootstrap-buffering"},
 		{"codex.stream-bootstrap-timeout", "upstream.codex.stream-bootstrap-timeout"},
@@ -98,22 +123,29 @@ func buildV8Paths() []configPath {
 		{"codex.upstream-request-compression", "upstream.codex.upstream-request-compression"},
 		{"codex.upstream-request-compression-min-bytes", "upstream.codex.upstream-request-compression-min-bytes"},
 		{"codex.websocket-compression", "upstream.codex.websocket-compression"},
-		{"codex", "oauth.providers.codex"}, {"codex-header-defaults", "oauth.providers.codex.header-defaults"},
-		{"claude", "upstream.claude"}, {"claude-code", "upstream.claude"},
+		{"codex", "oauth.providers.codex"},
+		{"codex-header-defaults", "oauth.providers.codex.header-defaults"},
+		{"claude", "upstream.claude"},
+		{"claude-code", "upstream.claude"},
 		{"disable-claude-cloak-mode", "upstream.claude.disable-claude-cloak-mode"},
 		{"claude-header-defaults", "upstream.claude.header-defaults"},
 		{"antigravity", "oauth.providers.antigravity"},
 		{"antigravity-signature-cache-enabled", "oauth.providers.antigravity.signature-cache-enabled"},
 		{"antigravity-signature-bypass-strict", "oauth.providers.antigravity.signature-bypass-strict"},
 		{"quota-exceeded.antigravity-credits", "oauth.providers.antigravity.antigravity-credits"},
-		{"xai", "upstream.xai"}, {"devin", "oauth.providers.devin"},
-		{"disable-image-generation", "multimedia.disable-image-generation"}, {"gpt-image-2-base-model", "multimedia.gpt-image-2-base-model"},
+		{"xai", "upstream.xai"},
+		{"devin", "oauth.providers.devin"},
+		{"disable-image-generation", "multimedia.disable-image-generation"},
+		{"gpt-image-2-base-model", "multimedia.gpt-image-2-base-model"},
 		{"video-result-auth-cache-ttl", "multimedia.video-result-auth-cache-ttl"},
-		{"debug", "observability.logs.debug"}, {"logging-to-file", "observability.logs.logging-to-file"},
-		{"logs-max-total-size-mb", "observability.logs.logs-max-total-size-mb"}, {"request-log", "observability.logs.request-log"},
+		{"debug", "observability.logs.debug"},
+		{"logging-to-file", "observability.logs.logging-to-file"},
+		{"logs-max-total-size-mb", "observability.logs.logs-max-total-size-mb"},
+		{"request-log", "observability.logs.request-log"},
 		{"error-logs-max-files", "observability.logs.error-logs-max-files"},
 		{"usage-statistics-enabled", "observability.usage.usage-statistics-enabled"},
-		{"redis-usage-queue-retention-seconds", "observability.usage.redis-usage-queue-retention-seconds"}, {"pprof", "observability.pprof"},
+		{"redis-usage-queue-retention-seconds", "observability.usage.redis-usage-queue-retention-seconds"},
+		{"pprof", "observability.pprof"},
 	}
 	var out []configPath
 	var walk func(reflect.Type, string, []int)
