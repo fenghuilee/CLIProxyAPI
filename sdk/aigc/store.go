@@ -48,6 +48,14 @@ type GenerationDeleteExpiredRequest struct {
 	Limit  int       `json:"limit"`
 }
 
+// GenerationReapStaleRequest parameters for reaping stale generations stuck in submitting.
+type GenerationReapStaleRequest struct {
+	StaleDuration time.Duration `json:"stale_duration"`
+	Limit         int           `json:"limit"`
+	ErrorCode     string        `json:"error_code,omitempty"`
+	ErrorMessage  string        `json:"error_message,omitempty"`
+}
+
 // ContentGenerationStore defines the persistence contract for content generations.
 type ContentGenerationStore interface {
 	Create(ctx context.Context, req GenerationCreateRequest) (ContentGeneration, error)
@@ -56,4 +64,5 @@ type ContentGenerationStore interface {
 	Claim(ctx context.Context, req GenerationClaimRequest) ([]ContentGeneration, error)
 	Release(ctx context.Context, req GenerationReleaseRequest) error
 	DeleteExpired(ctx context.Context, req GenerationDeleteExpiredRequest) (int64, error)
+	ReapStaleSubmissions(ctx context.Context, req GenerationReapStaleRequest) ([]ContentGeneration, error)
 }

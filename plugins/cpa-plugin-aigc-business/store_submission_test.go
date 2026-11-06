@@ -67,3 +67,43 @@ func TestReleaseDoesNotInvalidateSubmissionOrAnotherOwner(t *testing.T) {
 		})
 	}
 }
+
+func TestReapStaleSubmissions(t *testing.T) {
+	bridge := newMockMemoryDBBridge()
+	now := time.Now()
+	// Stale submitting task without provider_task_id -> should be reaped
+	bridge.records["cg_stale"] = map[string]any{
+		"generation_id": "cg_stale", "revision": uint64(1),
+		"status": "accepted", "stage": "submitting", "provider_task_id": "",
+		"updated_at": now.Add(-15 * time.Minute), "created_at": now.Add(-15 * time.Minute),
+	}
+	// Fresh submitting task -> should NOT be reaped
+	bridge.records["cg_fresh"] = map[string]any{
+		"generation_id": "cg_fresh", "revision": uint64(1),
+		"status": "accepted", "stage": "submitting", "provider_task_id": "",
+		"updated_at": now.Add(-2 * time.Minute), "created_at": now.Add(-2 * time.Minute),
+	}
+	// Task with provider_task_id -> should NOT be reaped
+	bridge.records["cg_with_tid"] = map[string]any{
+		"generation_id": "cg_with_tid", "revision": uint64(1),
+		"status": "accepted", "stage": "submitting", "provider_task_id": "task_123",
+		"updated_at": now.Add(-20 * time.Minute), "created_at": now.Add(-20 * time.Minute),
+	}
+
+	store := NewStore(bridge)
+	reaped, err := store.ReapStaleSubmissions(context.Background(), aigc.GenerationReapStaleRequest{
+		StaleDuration: 10 * time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("ReapStaleSubmissions failed: %v", err)
+	}
+	if len(reaped) != 1 || reaped[0].ID != "cg_stale" {
+		t.Fatalf("expected 1 reaped task (cg_stale), got: %+v", reaped)
+	}
+	if reaped[0].Status != aigc.StatusFailed || reaped[0].Stage != aigc.StageFailed {
+		t.Fatalf("expected failed status and stage, got status=%s stage=%s", reaped[0].Status, reaped[0].Stage)
+	}
+	if reaped[0].ErrorCode != "upstream_submission_timeout" {
+		t.Fatalf("expected upstream_submission_timeout error_code, got %s", reaped[0].ErrorCode)
+	}
+}

@@ -71,6 +71,16 @@ func (s rpcContentGenerationStore) DeleteExpired(ctx context.Context, req aigc.G
 	return resp.Deleted, nil
 }
 
+func (s rpcContentGenerationStore) ReapStaleSubmissions(ctx context.Context, req aigc.GenerationReapStaleRequest) ([]aigc.ContentGeneration, error) {
+	resp, errCall := callPlugin[[]aigc.ContentGeneration](ctx, s.client, pluginabi.MethodContentGenerationStoreReapStale, rpcContentGenerationStoreReapStaleRequest{
+		GenerationReapStaleRequest: req,
+	})
+	if errCall != nil {
+		return nil, errCall
+	}
+	return resp, nil
+}
+
 type rpcContentGenerationMutator struct {
 	*rpcPluginAdapter
 }

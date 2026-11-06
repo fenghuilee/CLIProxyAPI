@@ -74,9 +74,7 @@ const (
 	pluginRepository = "https://github.com/fenghuilee/cpa-plugin-aigc-business"
 )
 
-var (
-	pluginVersion = "v2026-01-01 (build 00:00:00)"
-)
+var pluginVersion = "v2026-01-01 (build 00:00:00)"
 
 var (
 	pluginInstance *Plugin
@@ -164,6 +162,8 @@ func (p *Plugin) dispatch(ctx context.Context, method string, request []byte) ([
 		return p.handleRelease(ctx, request), 0
 	case pluginabi.MethodContentGenerationStoreDeleteExpired:
 		return p.handleDeleteExpired(ctx, request), 0
+	case pluginabi.MethodContentGenerationStoreReapStale:
+		return p.handleReapStale(ctx, request), 0
 
 	default:
 		return errorEnvelope("unsupported_method", fmt.Sprintf("method not supported: %s", method)), 0
@@ -226,6 +226,10 @@ type rpcDeleteExpiredRequest struct {
 
 type rpcDeleteExpiredResponse struct {
 	Deleted int64 `json:"deleted"`
+}
+
+type rpcReapStaleRequest struct {
+	aigc.GenerationReapStaleRequest
 }
 
 func (p *Plugin) handleCreate(ctx context.Context, request []byte) []byte {
@@ -309,6 +313,20 @@ func (p *Plugin) handleDeleteExpired(ctx context.Context, request []byte) []byte
 		return errorEnvelope("delete_expired_failed", err.Error())
 	}
 	return mustEnvelope(rpcDeleteExpiredResponse{Deleted: deleted})
+}
+
+func (p *Plugin) handleReapStale(ctx context.Context, request []byte) []byte {
+	var req rpcReapStaleRequest
+	if len(request) > 0 {
+		if err := json.Unmarshal(request, &req); err != nil {
+			return errorEnvelope("invalid_request", err.Error())
+		}
+	}
+	reaped, err := p.store.ReapStaleSubmissions(ctx, req.GenerationReapStaleRequest)
+	if err != nil {
+		return errorEnvelope("reap_stale_failed", err.Error())
+	}
+	return mustEnvelope(reaped)
 }
 
 type hostDBBridge struct{}

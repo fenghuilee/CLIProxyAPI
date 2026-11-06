@@ -134,6 +134,7 @@ const (
 	MethodContentGenerationStoreClaim         = "content_generation.store.claim"
 	MethodContentGenerationStoreRelease       = "content_generation.store.release"
 	MethodContentGenerationStoreDeleteExpired = "content_generation.store.delete_expired"
+	MethodContentGenerationStoreReapStale     = "content_generation.store.reap_stale"
 
 	MethodContentGenerationMutate = "content_generation.mutate"
 	MethodContentGenerationEvent  = "content_generation.event"

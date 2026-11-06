@@ -197,6 +197,11 @@ type rpcContentGenerationStoreDeleteExpiredRequest struct {
 	HostCallbackID string `json:"host_callback_id,omitempty"`
 }
 
+type rpcContentGenerationStoreReapStaleRequest struct {
+	aigc.GenerationReapStaleRequest
+	HostCallbackID string `json:"host_callback_id,omitempty"`
+}
+
 type rpcContentGenerationDeleteExpiredResponse struct {
 	Deleted int64 `json:"deleted"`
 }

@@ -18,7 +18,7 @@ func TestWanDriverPollInterval(t *testing.T) {
 	if interval := generationPollInterval(time.Millisecond, map[string]any{"aigc_poll_interval_seconds": 15}); interval != time.Millisecond {
 		t.Fatal("explicit test/config override ignored")
 	}
-	if interval := generationPollInterval(0, nil); interval != 3*time.Second {
+	if interval := generationPollInterval(0, nil); interval != 5*time.Second {
 		t.Fatal("other driver default changed")
 	}
 	if delay := nextGenerationPollDelay(15*time.Second, 15*time.Second, true); delay != 30*time.Second {

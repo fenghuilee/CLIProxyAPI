@@ -109,3 +109,89 @@ func TestRecoveryWorker(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	worker.Stop()
 }
+
+func TestRecoveryWorker_ReapOnce(t *testing.T) {
+	baseStore := newInMemoryStore()
+	store := &recoveryTestStore{inMemoryStore: baseStore}
+
+	host := pluginhost.NewTestHost(
+		pluginhost.TestCapabilityRecord{
+			ID:       "store-plugin",
+			Priority: 100,
+			Plugin: pluginapi.Plugin{
+				Capabilities: pluginapi.Capabilities{ContentGenerationStore: store},
+			},
+		},
+	)
+
+	coordinator := NewCoordinator(host, nil)
+	coordinator.SetExecutor(&testExecutor{})
+
+	now := time.Now()
+	// 1. Stale submitting task -> should be reaped
+	staleGen, _ := store.Create(context.Background(), aigc.GenerationCreateRequest{
+		Draft: aigc.ContentGenerationDraft{
+			ID:    "cg_stale_1",
+			Kind:  aigc.ContentKindVideo,
+			Model: "doubao-seedance-2-0-mini",
+		},
+	})
+	staleGen.Stage = aigc.StageSubmitting
+	staleGen.UpdatedAt = now.Add(-15 * time.Minute)
+	store.generations[staleGen.ID] = staleGen
+
+	// 2. Fresh submitting task -> should NOT be reaped
+	freshGen, _ := store.Create(context.Background(), aigc.GenerationCreateRequest{
+		Draft: aigc.ContentGenerationDraft{
+			ID:    "cg_fresh_1",
+			Kind:  aigc.ContentKindVideo,
+			Model: "doubao-seedance-2-0-mini",
+		},
+	})
+	freshGen.Stage = aigc.StageSubmitting
+	freshGen.UpdatedAt = now.Add(-2 * time.Minute)
+	store.generations[freshGen.ID] = freshGen
+
+	// 3. Running task with task ID -> should NOT be reaped
+	runningGen, _ := store.Create(context.Background(), aigc.GenerationCreateRequest{
+		Draft: aigc.ContentGenerationDraft{
+			ID:    "cg_running_1",
+			Kind:  aigc.ContentKindVideo,
+			Model: "doubao-seedance-2-0-mini",
+		},
+	})
+	runningGen.Status = aigc.StatusRunning
+	runningGen.Stage = aigc.StageProviderRunning
+	runningGen.ProviderTaskID = "upstream_task_123"
+	runningGen.UpdatedAt = now.Add(-20 * time.Minute)
+	store.generations[runningGen.ID] = runningGen
+
+	worker := NewRecoveryWorker(coordinator, 100*time.Millisecond)
+	worker.SetStaleThreshold(10 * time.Minute)
+
+	count, err := worker.ReapOnce(context.Background())
+	if err != nil {
+		t.Fatalf("ReapOnce failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 reaped task, got %d", count)
+	}
+
+	reaped, _ := store.Get(context.Background(), aigc.GenerationGetRequest{ID: "cg_stale_1"})
+	if reaped.Status != aigc.StatusFailed || reaped.Stage != aigc.StageFailed {
+		t.Fatalf("expected failed status, got status=%s stage=%s", reaped.Status, reaped.Stage)
+	}
+	if reaped.ErrorCode != "upstream_submission_timeout" {
+		t.Fatalf("expected upstream_submission_timeout, got %s", reaped.ErrorCode)
+	}
+
+	fresh, _ := store.Get(context.Background(), aigc.GenerationGetRequest{ID: "cg_fresh_1"})
+	if fresh.Status != aigc.StatusAccepted || fresh.Stage != aigc.StageSubmitting {
+		t.Fatalf("fresh task was modified: %+v", fresh)
+	}
+
+	running, _ := store.Get(context.Background(), aigc.GenerationGetRequest{ID: "cg_running_1"})
+	if running.Status != aigc.StatusRunning {
+		t.Fatalf("running task was modified: %+v", running)
+	}
+}

@@ -34,6 +34,9 @@ func (m *mockStore) Release(ctx context.Context, req aigc.GenerationReleaseReque
 func (m *mockStore) DeleteExpired(ctx context.Context, req aigc.GenerationDeleteExpiredRequest) (int64, error) {
 	return 5, nil
 }
+func (m *mockStore) ReapStaleSubmissions(ctx context.Context, req aigc.GenerationReapStaleRequest) ([]aigc.ContentGeneration, error) {
+	return nil, nil
+}
 
 type mockMutator struct {
 	mutateFn func(context.Context, aigc.GenerationMutationRequest) (aigc.GenerationMutationResponse, error)

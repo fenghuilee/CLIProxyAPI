@@ -425,7 +425,7 @@ func generationPollInterval(configured time.Duration, metadata map[string]any) t
 	if seconds > 0 && seconds <= 86400 {
 		return time.Duration(seconds * float64(time.Second))
 	}
-	return 3 * time.Second
+	return 5 * time.Second
 }
 
 // nextGenerationPollDelay implements opt-in backoff without changing successful polling cadence.

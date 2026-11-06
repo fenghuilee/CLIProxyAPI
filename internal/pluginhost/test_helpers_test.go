@@ -395,6 +395,19 @@ func (l *testSymbolLookup) Call(ctx context.Context, method string, request []by
 			return nil, errDel
 		}
 		return marshalRPCResult(rpcContentGenerationDeleteExpiredResponse{Deleted: deleted})
+	case pluginabi.MethodContentGenerationStoreReapStale:
+		if l.active.Capabilities.ContentGenerationStore == nil {
+			return nil, fmt.Errorf("missing content generation store")
+		}
+		var req rpcContentGenerationStoreReapStaleRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		reaped, errReap := l.active.Capabilities.ContentGenerationStore.ReapStaleSubmissions(ctx, req.GenerationReapStaleRequest)
+		if errReap != nil {
+			return nil, errReap
+		}
+		return marshalRPCResult(reaped)
 	case pluginabi.MethodContentGenerationMutate:
 		if l.active.Capabilities.ContentGenerationMutator == nil {
 			return nil, fmt.Errorf("missing content generation mutator")

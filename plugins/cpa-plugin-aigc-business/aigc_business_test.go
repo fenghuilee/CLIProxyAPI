@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -149,17 +150,24 @@ func (m *mockMemoryDBBridge) Exec(ctx context.Context, query string, args ...any
 		rec["revision"] = currentRevision + 1
 		rec["updated_at"] = time.Now()
 
-		// Apply fields
-		if stringsContains(query, "status = ?") {
-			for i, clause := range splitSetClauses(query) {
-				if stringsContains(clause, "status = ?") && i+1 < len(args) {
-					rec["status"] = args[i+1]
-				}
-				if stringsContains(clause, "stage = ?") && i+1 < len(args) {
-					rec["stage"] = args[i+1]
-				}
-				if stringsContains(clause, "progress = ?") && i+1 < len(args) {
-					rec["progress"] = args[i+1]
+		// Apply fields dynamically based on query
+		if setIdx := strings.Index(query, "SET "); setIdx != -1 {
+			whereIdx := strings.Index(query, " WHERE")
+			if whereIdx > setIdx {
+				setPart := query[setIdx+4 : whereIdx]
+				clauses := strings.Split(setPart, ", ")
+				argIdx := 0
+				for _, clause := range clauses {
+					trimmed := strings.TrimSpace(clause)
+					if trimmed == "revision = revision + 1" {
+						continue
+					}
+					parts := strings.Split(trimmed, " = ?")
+					if len(parts) == 2 && argIdx < len(args)-2 {
+						col := parts[0]
+						rec[col] = args[argIdx]
+						argIdx++
+					}
 				}
 			}
 		}

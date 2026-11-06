@@ -113,6 +113,36 @@ func (s *inMemoryStore) Release(ctx context.Context, req aigc.GenerationReleaseR
 func (s *inMemoryStore) DeleteExpired(ctx context.Context, req aigc.GenerationDeleteExpiredRequest) (int64, error) {
 	return 0, nil
 }
+func (s *inMemoryStore) ReapStaleSubmissions(ctx context.Context, req aigc.GenerationReapStaleRequest) ([]aigc.ContentGeneration, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	threshold := now.Add(-req.StaleDuration)
+	var reaped []aigc.ContentGeneration
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	for id, gen := range s.generations {
+		if gen.Status == aigc.StatusAccepted && gen.Stage == aigc.StageSubmitting && gen.ProviderTaskID == "" {
+			if gen.UpdatedAt.Before(threshold) {
+				gen.Status = aigc.StatusFailed
+				gen.Stage = aigc.StageFailed
+				gen.ErrorCode = req.ErrorCode
+				gen.ErrorMessage = req.ErrorMessage
+				gen.Revision++
+				gen.UpdatedAt = now
+				gen.CompletedAt = &now
+				s.generations[id] = gen
+				reaped = append(reaped, gen)
+				if len(reaped) >= limit {
+					break
+				}
+			}
+		}
+	}
+	return reaped, nil
+}
 
 type testDriver struct {
 	kind     aigc.ContentKind

@@ -311,6 +311,75 @@ func (s *Store) DeleteExpired(ctx context.Context, req aigc.GenerationDeleteExpi
 	return rowsAffected, nil
 }
 
+// ReapStaleSubmissions marks generations stuck in submitting beyond the stale threshold as failed.
+func (s *Store) ReapStaleSubmissions(ctx context.Context, req aigc.GenerationReapStaleRequest) ([]aigc.ContentGeneration, error) {
+	if s == nil || s.bridge == nil {
+		return nil, fmt.Errorf("store bridge not initialized")
+	}
+
+	staleDuration := req.StaleDuration
+	if staleDuration <= 0 {
+		staleDuration = 10 * time.Minute
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	errorCode := req.ErrorCode
+	if errorCode == "" {
+		errorCode = "upstream_submission_timeout"
+	}
+	errorMessage := req.ErrorMessage
+	if errorMessage == "" {
+		errorMessage = "submission timed out after 10 minutes without provider confirmation"
+	}
+
+	now := time.Now()
+	threshold := now.Add(-staleDuration)
+
+	query := fmt.Sprintf(`
+SELECT * FROM content_generations
+WHERE status = 'accepted'
+  AND stage = 'submitting'
+  AND (provider_task_id IS NULL OR provider_task_id = '')
+  AND updated_at < ?
+ORDER BY updated_at ASC
+LIMIT %d`, limit)
+
+	rows, err := s.bridge.Query(ctx, query, threshold)
+	if err != nil {
+		return nil, fmt.Errorf("query stale submitting tasks: %w", err)
+	}
+
+	var reaped []aigc.ContentGeneration
+	for _, row := range rows {
+		gen := rowToGeneration(row)
+		if gen.Status != aigc.StatusAccepted || gen.Stage != aigc.StageSubmitting || gen.ProviderTaskID != "" {
+			continue
+		}
+		if !gen.UpdatedAt.Before(threshold) {
+			continue
+		}
+
+		patched, errPatch := s.Patch(ctx, aigc.GenerationPatchRequest{
+			ID:               gen.ID,
+			ExpectedRevision: gen.Revision,
+			Set: map[string]any{
+				"status":        aigc.StatusFailed,
+				"stage":         aigc.StageFailed,
+				"error_code":    errorCode,
+				"error_message": errorMessage,
+				"completed_at":  now,
+			},
+		})
+		if errPatch == nil {
+			reaped = append(reaped, patched)
+		}
+	}
+
+	return reaped, nil
+}
+
 func (s *Store) insertArtifacts(ctx context.Context, genID string, artifacts []aigc.ContentGenerationArtifact) error {
 	if len(artifacts) == 0 {
 		return nil

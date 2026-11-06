@@ -99,6 +99,10 @@ func (s *testAIGCStore) DeleteExpired(ctx context.Context, req aigc.GenerationDe
 	return 0, nil
 }
 
+func (s *testAIGCStore) ReapStaleSubmissions(ctx context.Context, req aigc.GenerationReapStaleRequest) ([]aigc.ContentGeneration, error) {
+	return nil, nil
+}
+
 type testAIGCDriver struct{}
 
 func (d *testAIGCDriver) Supports(ctx context.Context, req aigc.GenerationSupportRequest) (aigc.GenerationSupportResponse, error) {
