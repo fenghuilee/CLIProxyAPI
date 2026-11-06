@@ -165,8 +165,9 @@ func (a *SeedanceAdapter) PrepareSubmit(ctx context.Context, input aigc.Generati
 	if safetyIdentifier := firstString(inputBytes, "safety_identifier", "extra_body.safety_identifier"); safetyIdentifier != "" {
 		payload["safety_identifier"] = safetyIdentifier
 	}
-	if callbackURL := firstString(inputBytes, "callback_url", "extra_body.callback_url"); callbackURL != "" {
-		payload["callback_url"] = callbackURL
+	// Ignore user-provided callback_url to prevent hijacking; only inject system-configured callback
+	if sysCallback, ok := gen.Metadata["aigc_system_callback_url"].(string); ok && sysCallback != "" {
+		payload["callback_url"] = sysCallback
 	}
 	if execExpiresAfter := firstInt(inputBytes, "execution_expires_after", "extra_body.execution_expires_after"); execExpiresAfter > 0 {
 		payload["execution_expires_after"] = execExpiresAfter
@@ -320,6 +321,11 @@ func (a *SeedanceAdapter) ParseCancel(ctx context.Context, resp aigc.GenerationE
 		return fmt.Errorf("%s: task cancellation is not supported", a.Name())
 	}
 	return nil
+}
+
+// ParseCallback parses task webhook notification from provider.
+func (a *SeedanceAdapter) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return a.ParsePoll(ctx, resp)
 }
 
 type seedanceRef struct {

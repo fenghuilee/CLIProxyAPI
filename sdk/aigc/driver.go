@@ -90,4 +90,5 @@ type ContentGenerationDriver interface {
 	ParsePoll(ctx context.Context, resp GenerationExecutionResponse) (GenerationPollResult, error)
 	PrepareCancel(ctx context.Context, input GenerationCancelInput) (GenerationExecutionRequest, error)
 	ParseCancel(ctx context.Context, resp GenerationExecutionResponse) error
+	ParseCallback(ctx context.Context, resp GenerationExecutionResponse) (GenerationPollResult, error)
 }

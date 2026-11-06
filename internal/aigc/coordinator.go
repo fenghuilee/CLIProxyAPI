@@ -176,6 +176,13 @@ func (c *Coordinator) AsyncSubmit(id string) {
 	}
 
 	// 3. PrepareSubmit via driver
+	if gen.Metadata == nil {
+		gen.Metadata = make(map[string]any)
+	}
+	if _, ok := gen.Metadata["aigc_callback_token"].(string); !ok {
+		gen.Metadata["aigc_callback_token"] = strings.ReplaceAll(uuid.New().String(), "-", "")[:16]
+	}
+
 	execReq, errPrep := driver.PrepareSubmit(ctx, aigc.GenerationSubmitInput{Generation: gen})
 	if errPrep != nil {
 		c.failGeneration(ctx, gen, aigc.ErrCodeInvalidParameter, errPrep.Error())
@@ -510,6 +517,71 @@ func (c *Coordinator) pollGeneration(ctx context.Context, store aigc.ContentGene
 		return gen
 	}
 
+	updated, errApply := c.applyGenerationResult(ctx, store, gen, pollResult, false)
+	if errApply != nil {
+		log.Debugf("aigc: failed to patch poll result for %s: %v", gen.ID, errApply)
+		return gen
+	}
+	return updated
+}
+
+// HandleCallback processes an asynchronous webhook callback from a provider.
+func (c *Coordinator) HandleCallback(ctx context.Context, provider string, genID string, token string, body []byte, headers http.Header) error {
+	genID = strings.TrimSpace(genID)
+	if genID == "" {
+		return fmt.Errorf("missing generation id")
+	}
+
+	store, _, okStore := c.pluginHost.ContentGenerationStore()
+	if !okStore || store == nil {
+		return aigc.ErrStoreNotConfigured
+	}
+
+	gen, errGet := store.Get(ctx, aigc.GenerationGetRequest{ID: genID})
+	if errGet != nil {
+		return errGet
+	}
+
+	// Idempotent completion check: if already terminal, ignore safely
+	if aigc.IsTerminalStatus(gen.Status) {
+		return nil
+	}
+
+	// Token validation if token was configured/saved on generation
+	if expectedToken, ok := gen.Metadata["aigc_callback_token"].(string); ok && expectedToken != "" {
+		if token != expectedToken {
+			return fmt.Errorf("invalid callback token")
+		}
+	}
+
+	driver, _, okDriver := c.pluginHost.ContentGenerationDriverFor(ctx, gen.Kind, gen.Model)
+	if !okDriver || driver == nil {
+		return fmt.Errorf("no driver available for kind=%s model=%s", gen.Kind, gen.Model)
+	}
+
+	respMetadata := map[string]any{
+		"provider": gen.Provider,
+		"task_id":  gen.ProviderTaskID,
+	}
+	if adapter, ok := gen.Metadata["aigc_adapter"].(string); ok && adapter != "" {
+		respMetadata["provider"] = adapter
+	}
+
+	result, errParse := driver.ParseCallback(ctx, aigc.GenerationExecutionResponse{
+		StatusCode: http.StatusOK,
+		Header:     headers,
+		Body:       body,
+		Metadata:   respMetadata,
+	})
+	if errParse != nil {
+		return fmt.Errorf("parse callback: %w", errParse)
+	}
+
+	_, errApply := c.applyGenerationResult(ctx, store, gen, result, true)
+	return errApply
+}
+
+func (c *Coordinator) applyGenerationResult(ctx context.Context, store aigc.ContentGenerationStore, gen aigc.ContentGeneration, pollResult aigc.GenerationPollResult, isCallback bool) (aigc.ContentGeneration, error) {
 	patchSet := map[string]any{
 		"progress": pollResult.Progress,
 	}
@@ -572,15 +644,15 @@ func (c *Coordinator) pollGeneration(ctx context.Context, store aigc.ContentGene
 		Artifacts:        artifactsToPersist,
 	})
 	if errPatch != nil {
-		log.Debugf("aigc: failed to patch poll result for %s: %v", gen.ID, errPatch)
-		return gen
+		return gen, errPatch
 	}
 	gen = patchGen
 
+	eventType := aigc.EventProviderPolled
 	c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
 		GenerationID: gen.ID,
 		Revision:     gen.Revision,
-		EventType:    aigc.EventProviderPolled,
+		EventType:    eventType,
 		Stage:        gen.Stage,
 		Status:       gen.Status,
 		CreatedAt:    time.Now(),
@@ -614,7 +686,7 @@ func (c *Coordinator) pollGeneration(ctx context.Context, store aigc.ContentGene
 		})
 	}
 
-	return gen
+	return gen, nil
 }
 
 // CancelGeneration cancels an active content generation task.

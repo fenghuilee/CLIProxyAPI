@@ -31,6 +31,9 @@ func (m *mockAdapter) PrepareCancel(_ context.Context, _ aigc.GenerationCancelIn
 func (m *mockAdapter) ParseCancel(_ context.Context, _ aigc.GenerationExecutionResponse) error {
 	return nil
 }
+func (m *mockAdapter) ParseCallback(_ context.Context, _ aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return aigc.GenerationPollResult{Status: aigc.StatusSucceeded}, nil
+}
 
 type mockFallbackAdapter struct {
 	mockAdapter

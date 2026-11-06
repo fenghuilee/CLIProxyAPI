@@ -15,6 +15,7 @@ type Adapter interface {
 	ParsePoll(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error)
 	PrepareCancel(ctx context.Context, input aigc.GenerationCancelInput) (aigc.GenerationExecutionRequest, error)
 	ParseCancel(ctx context.Context, resp aigc.GenerationExecutionResponse) error
+	ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error)
 }
 
 // FallbackAdapter can accept requests not matched by model prefixes.

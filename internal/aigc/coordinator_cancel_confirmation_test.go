@@ -32,6 +32,9 @@ func (d *confirmedCancelDriver) PrepareCancel(context.Context, aigc.GenerationCa
 func (d *confirmedCancelDriver) ParseCancel(context.Context, aigc.GenerationExecutionResponse) error {
 	return d.parseErr
 }
+func (d *confirmedCancelDriver) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return d.ParsePoll(ctx, resp)
+}
 func (d *confirmedCancelDriver) ParsePoll(_ context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
 	d.parsedStatus = resp.StatusCode
 	if resp.StatusCode == 404 {

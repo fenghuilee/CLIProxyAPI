@@ -304,6 +304,11 @@ func (a *QwenWanAdapter) ParseCancel(ctx context.Context, resp aigc.GenerationEx
 	return nil
 }
 
+// ParseCallback parses task webhook notification from provider.
+func (a *QwenWanAdapter) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return a.ParsePoll(ctx, resp)
+}
+
 // NormalizeWanResolution maps common resolution aliases to Wan tiers.
 func NormalizeWanResolution(res string) string {
 	resLower := strings.ToLower(strings.TrimSpace(res))

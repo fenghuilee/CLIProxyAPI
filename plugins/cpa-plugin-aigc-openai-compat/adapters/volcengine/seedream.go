@@ -217,6 +217,11 @@ func (a *VolcengineSeedreamAdapter) ParseCancel(ctx context.Context, resp aigc.G
 	return nil
 }
 
+// ParseCallback parses task webhook notification from provider.
+func (a *VolcengineSeedreamAdapter) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return a.ParsePoll(ctx, resp)
+}
+
 func extractSeedreamArtifacts(body []byte) []aigc.ContentGenerationArtifact {
 	var artifacts []aigc.ContentGenerationArtifact
 

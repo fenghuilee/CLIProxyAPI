@@ -11,34 +11,34 @@ import (
 
 // PluginConfig represents the plugin's normalized configuration properties.
 type PluginConfig struct {
-	DBHost           string `yaml:"db_host" json:"db_host"`
-	DBPort           int    `yaml:"db_port" json:"db_port"`
-	DBUser           string `yaml:"db_user" json:"db_user"`
-	DBPassword       string `yaml:"db_password" json:"db_password"`
-	DBName           string `yaml:"db_name" json:"db_name"`
-	DBCharset        string `yaml:"db_charset" json:"db_charset"`
+	DBHost           string `yaml:"db-host" json:"db-host"`
+	DBPort           int    `yaml:"db-port" json:"db-port"`
+	DBUser           string `yaml:"db-user" json:"db-user"`
+	DBPassword       string `yaml:"db-password" json:"db-password"`
+	DBName           string `yaml:"db-name" json:"db-name"`
+	DBCharset        string `yaml:"db-charset" json:"db-charset"`
 	DSN              string `yaml:"dsn" json:"dsn"`
-	CPABaseURL       string `yaml:"cpa_base_url" json:"cpa_base_url"`
-	CPAManagementKey string `yaml:"cpa_management_key" json:"cpa_management_key"`
+	CPABaseURL       string `yaml:"cpa-base-url" json:"cpa-base-url"`
+	CPAManagementKey string `yaml:"cpa-management-key" json:"cpa-management-key"`
 }
 
 type rawConfigInput struct {
-	DBHost           string `yaml:"db_host" json:"db_host"`
+	DBHost           string `yaml:"db-host" json:"db-host"`
 	Host             string `yaml:"host" json:"host"`
-	DBPort           int    `yaml:"db_port" json:"db_port"`
+	DBPort           int    `yaml:"db-port" json:"db-port"`
 	Port             int    `yaml:"port" json:"port"`
-	DBUser           string `yaml:"db_user" json:"db_user"`
+	DBUser           string `yaml:"db-user" json:"db-user"`
 	Username         string `yaml:"username" json:"username"`
 	User             string `yaml:"user" json:"user"`
-	DBPassword       string `yaml:"db_password" json:"db_password"`
+	DBPassword       string `yaml:"db-password" json:"db-password"`
 	Password         string `yaml:"password" json:"password"`
-	DBName           string `yaml:"db_name" json:"db_name"`
+	DBName           string `yaml:"db-name" json:"db-name"`
 	Database         string `yaml:"database" json:"database"`
-	DBCharset        string `yaml:"db_charset" json:"db_charset"`
+	DBCharset        string `yaml:"db-charset" json:"db-charset"`
 	Charset          string `yaml:"charset" json:"charset"`
 	DSN              string `yaml:"dsn" json:"dsn"`
-	CPABaseURL       string `yaml:"cpa_base_url" json:"cpa_base_url"`
-	CPAManagementKey string `yaml:"cpa_management_key" json:"cpa_management_key"`
+	CPABaseURL       string `yaml:"cpa-base-url" json:"cpa-base-url"`
+	CPAManagementKey string `yaml:"cpa-management-key" json:"cpa-management-key"`
 }
 
 func defaultPluginConfig() PluginConfig {

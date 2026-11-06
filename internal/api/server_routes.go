@@ -134,6 +134,12 @@ func (s *Server) setupRoutes() {
 		aigcV1.POST("/images/:generation_id/cancel", s.aigcCancelImageHandler)
 	}
 
+	// AIGC Provider Webhook Callback routes (unauthenticated by Bearer, authenticated by URL token/provider signature)
+	aigcCallbacks := s.engine.Group("/aigc/v1/callbacks")
+	{
+		aigcCallbacks.POST("/:provider", s.aigcCallbackHandler)
+	}
+
 	// Codex CLI direct route aliases (chatgpt_base_url compatible)
 	codexDirect := s.engine.Group("/backend-api/codex")
 	codexDirect.Use(AuthMiddleware(s.accessManager))

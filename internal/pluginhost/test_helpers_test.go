@@ -523,6 +523,19 @@ func (l *testSymbolLookup) Call(ctx context.Context, method string, request []by
 			return nil, errParse
 		}
 		return marshalRPCResult(rpcEmptyResponse{})
+	case pluginabi.MethodContentGenerationDriverParseCallback:
+		if l.active.Capabilities.ContentGenerationDriver == nil {
+			return nil, fmt.Errorf("missing content generation driver")
+		}
+		var req rpcContentGenerationDriverParseCallbackRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		result, errParse := l.active.Capabilities.ContentGenerationDriver.ParseCallback(ctx, req.Response)
+		if errParse != nil {
+			return nil, errParse
+		}
+		return marshalRPCResult(result)
 	case pluginabi.MethodDatabaseProviderQuery:
 		if l.active.Capabilities.DatabaseProvider == nil {
 			return nil, fmt.Errorf("missing database provider")

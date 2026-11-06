@@ -133,6 +133,10 @@ func (d *testAIGCDriver) ParseCancel(ctx context.Context, resp aigc.GenerationEx
 	return nil
 }
 
+func (d *testAIGCDriver) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return d.ParsePoll(ctx, resp)
+}
+
 func TestAIGCVideoEndpoints(t *testing.T) {
 	store := newTestAIGCStore()
 	host := pluginhost.NewTestHost(
@@ -302,6 +306,54 @@ func TestAIGCVideoEndpoints(t *testing.T) {
 	}
 }
 
+func TestAIGCCallbackEndpoint(t *testing.T) {
+	store := newTestAIGCStore()
+	host := pluginhost.NewTestHost(
+		pluginhost.TestCapabilityRecord{
+			ID:       "store-plugin",
+			Priority: 100,
+			Plugin: pluginapi.Plugin{
+				Capabilities: pluginapi.Capabilities{
+					ContentGenerationStore: store,
+				},
+			},
+		},
+		pluginhost.TestCapabilityRecord{
+			ID:       "driver-plugin",
+			Priority: 50,
+			Plugin: pluginapi.Plugin{
+				Capabilities: pluginapi.Capabilities{
+					ContentGenerationDriver: &testAIGCDriver{},
+				},
+			},
+		},
+	)
+
+	server := newTestServerWithOptions(t, WithPluginHost(host))
+
+	gen, _ := store.Create(context.Background(), aigc.GenerationCreateRequest{
+		Draft: aigc.ContentGenerationDraft{
+			ID:    "cg_http_cb",
+			Kind:  aigc.ContentKindVideo,
+			Model: "test-model",
+			Metadata: map[string]any{
+				"aigc_callback_token": "token_abc",
+			},
+		},
+	})
+	gen.Status = aigc.StatusRunning
+	gen.Stage = aigc.StageProviderRunning
+	store.generations[gen.ID] = gen
+
+	cbReq := httptest.NewRequest(http.MethodPost, "/aigc/v1/callbacks/driver-plugin?gid=cg_http_cb&token=token_abc", bytes.NewReader([]byte(`{}`)))
+	cbRR := httptest.NewRecorder()
+	server.engine.ServeHTTP(cbRR, cbReq)
+
+	if cbRR.Code != http.StatusOK {
+		t.Fatalf("POST callback code = %d, want 200, body = %s", cbRR.Code, cbRR.Body.String())
+	}
+}
+
 func TestAIGCImageEndpoints(t *testing.T) {
 	store := newTestAIGCStore()
 	host := pluginhost.NewTestHost(
@@ -384,6 +436,10 @@ func (d *testQwenImageDriver) PrepareCancel(ctx context.Context, input aigc.Gene
 
 func (d *testQwenImageDriver) ParseCancel(ctx context.Context, resp aigc.GenerationExecutionResponse) error {
 	return nil
+}
+
+func (d *testQwenImageDriver) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return d.ParsePoll(ctx, resp)
 }
 
 type testImageExecutor struct{}

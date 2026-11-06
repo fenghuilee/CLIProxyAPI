@@ -109,9 +109,9 @@ func TestConfigBuilder(t *testing.T) {
 func TestRPCLifecycleConfigParsing(t *testing.T) {
 	yamlContent := `
 enabled: true
-db_host: mysqla66169b895ea.rds.ivolces.com
-db_password: iishrKtLBLAGi5YW
-db_user: cliproxyapi
+db-host: mysqla66169b895ea.rds.ivolces.com
+db-password: iishrKtLBLAGi5YW
+db-user: cliproxyapi
 `
 	req := rpcLifecycleRequest{
 		ConfigYAML:    []byte(yamlContent),

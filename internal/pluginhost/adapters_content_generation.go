@@ -169,6 +169,16 @@ func (d rpcContentGenerationDriver) ParseCancel(ctx context.Context, resp aigc.G
 	return errCall
 }
 
+func (d rpcContentGenerationDriver) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	result, errCall := callPlugin[aigc.GenerationPollResult](ctx, d.client, pluginabi.MethodContentGenerationDriverParseCallback, rpcContentGenerationDriverParseCallbackRequest{
+		Response: resp,
+	})
+	if errCall != nil {
+		return aigc.GenerationPollResult{}, errCall
+	}
+	return result, nil
+}
+
 type rpcContentGenerationObserver struct {
 	*rpcPluginAdapter
 }

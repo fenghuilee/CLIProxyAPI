@@ -11,14 +11,14 @@ import (
 )
 
 const validAssetConfig = `volcengine:
-  access_key: direct-ak
-  secret_key: direct-sk
-  group_id: direct-group
+  access-key: direct-ak
+  secret-key: direct-sk
+  group-id: direct-group
 chinadatapay:
   token: relay-token
-  group_id: relay-group
+  group-id: relay-group
 runtime:
-  poll_interval_ms: 1500
+  poll-interval-ms: 1500
 `
 
 func TestConfigChannelsAndDefaults(t *testing.T) {
@@ -68,7 +68,7 @@ func TestConfigChannelsAndDefaults(t *testing.T) {
 
 func TestHostInstanceConfigRegistration(t *testing.T) {
 	for _, channel := range []string{
-		"volcengine:\n  enabled: true\n  access_key: test-ak\n  secret_key: test-sk\n  project: sdapi\n  group_id: test-group\n",
+		"volcengine:\n  enabled: true\n  access-key: test-ak\n  secret-key: test-sk\n  project: sdapi\n  group-id: test-group\n",
 		"chinadatapay:\n  token: test-token\n",
 	} {
 		for _, host := range []string{

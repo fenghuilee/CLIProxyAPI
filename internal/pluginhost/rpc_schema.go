@@ -250,6 +250,11 @@ type rpcContentGenerationDriverParseCancelRequest struct {
 	Response       aigc.GenerationExecutionResponse `json:"response"`
 	HostCallbackID string                           `json:"host_callback_id,omitempty"`
 }
+
+type rpcContentGenerationDriverParseCallbackRequest struct {
+	Response       aigc.GenerationExecutionResponse `json:"response"`
+	HostCallbackID string                           `json:"host_callback_id,omitempty"`
+}
 type rpcEmptyResponse struct{}
 
 func frontendAuthProviderWantsOmitBody(caps pluginapi.Capabilities) bool {

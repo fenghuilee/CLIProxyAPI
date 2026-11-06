@@ -146,6 +146,7 @@ const (
 	MethodContentGenerationDriverParsePoll     = "content_generation.driver.parse_poll"
 	MethodContentGenerationDriverPrepareCancel = "content_generation.driver.prepare_cancel"
 	MethodContentGenerationDriverParseCancel   = "content_generation.driver.parse_cancel"
+	MethodContentGenerationDriverParseCallback = "content_generation.driver.parse_callback"
 
 	MethodDatabaseProviderQuery = "database_provider.query"
 	MethodDatabaseProviderExec  = "database_provider.exec"

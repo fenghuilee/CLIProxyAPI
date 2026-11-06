@@ -39,12 +39,12 @@ plugins:
     portal-admin:
       enabled: true
       priority: 10
-      db_host: "127.0.0.1"
-      db_port: 3306
-      db_user: "root"
-      db_password: "your_password"
-      db_name: "cliproxyapi"
-      db_charset: "utf8mb4"
+      db-host: "127.0.0.1"
+      db-port: 3306
+      db-user: "root"
+      db-password: "your_password"
+      db-name: "cliproxyapi"
+      db-charset: "utf8mb4"
       # 或直接配置完整 DSN:
       # dsn: "root:your_password@tcp(127.0.0.1:3306)/cliproxyapi?charset=utf8mb4&parseTime=True&loc=Local"
 ```

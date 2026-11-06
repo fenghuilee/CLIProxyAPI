@@ -14,9 +14,9 @@ The following YAML is the plugin's configuration payload, not the complete CPA c
 ```yaml
 volcengine:
   enabled: true
-  access_key: "<AK>"
-  secret_key: "<SK>"
-  group_id: "<group ID>"
+  access-key: "<AK>"
+  secret-key: "<SK>"
+  group-id: "<group ID>"
   # project: default
   # region: cn-beijing
   # models: ["volcengine/doubao-seedance-*"]
@@ -24,14 +24,14 @@ volcengine:
 chinadatapay:
   enabled: true
   token: "<platform Token>"
-  # group_id: "<optional group ID>"
+  # group-id: "<optional group ID>"
   # models: ["cdp/doubao-seedance-*"]
 
 # Optional: these are the shared defaults.
 runtime:
-  poll_interval_ms: 1200
-  poll_timeout_seconds: 60
-  cache_ttl_seconds: 86400
+  poll-interval-ms: 1200
+  poll-timeout-seconds: 60
+  cache-ttl-seconds: 86400
 ```
 
 Use the deployment's secret-management mechanism for credentials; do not commit them.
@@ -110,8 +110,11 @@ take precedence over URL extensions. Prefer typed references for extensionless U
 ```json
 {
   "input_reference": [
-    {"type": "video_url", "video_url": {"url": "https://example.com/video"}},
-    {"type": "audio_url", "audio_url": {"url": "https://example.com/audio"}}
+    {
+      "type": "video_url",
+      "video_url": { "url": "https://example.com/video" }
+    },
+    { "type": "audio_url", "audio_url": { "url": "https://example.com/audio" } }
   ]
 }
 ```

@@ -67,10 +67,13 @@ func TestChinaDataPaySeedanceRoutingAndParameters(t *testing.T) {
 			t.Errorf("lost zero for %s", key)
 		}
 	}
-	for key, want := range map[string]string{"ratio": "adaptive", "omni_reference_task_type": "edit", "output_format": "mov", "callback_url": "https://example.com/callback", "safety_identifier": "hashed-user"} {
+	for key, want := range map[string]string{"ratio": "adaptive", "omni_reference_task_type": "edit", "output_format": "mov", "safety_identifier": "hashed-user"} {
 		if got := ojson.GetBytes(req.Body, key).String(); got != want {
 			t.Errorf("%s=%s, want %s", key, got, want)
 		}
+	}
+	if ojson.GetBytes(req.Body, "callback_url").Exists() {
+		t.Errorf("user-provided callback_url must be ignored, got: %s", ojson.GetBytes(req.Body, "callback_url").String())
 	}
 	for i, kind := range []string{"image", "video", "audio"} {
 		item := ojson.GetBytes(req.Body, "content").Array()[i+1]

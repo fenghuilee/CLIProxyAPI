@@ -21,6 +21,7 @@ configured in plugin YAML blocks; all such YAML blocks are now obsolete and shou
 be removed.
 
 The gateway origin and `/v2` business paths are built into the adapter:
+
 - Creation: `POST https://tp-api.chinadatapay.com:8000/v2/video_generation`
 - Query: `GET https://tp-api.chinadatapay.com:8000/v2/query/video_generation/<task_id>`
 - Cancel: `DELETE https://tp-api.chinadatapay.com:8000/v2/video_generation/<task_id>`
@@ -74,8 +75,9 @@ convention. Resolution or size is required; no default resolution is assumed.
 The shared canonical tier mapper is not used because it collapses 2K to 4K.
 Ratio is omitted only when neither size nor a native ratio is supplied;
 watermark is omitted when absent;
-explicit `false` is preserved. `callback_url` can be supplied in `extra_body`
-and is forwarded, but CPA does not provide a new callback receiver.
+explicit `false` is preserved. Client-supplied `callback_url` parameters
+are ignored for security; vendor webhook callbacks are managed internally
+by the plugin runtime when configured.
 
 Native content is accepted in `extra_body.content`. It takes precedence over
 `prompt` and `input_reference` and must contain a nonempty text item. Media use

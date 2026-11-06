@@ -147,8 +147,9 @@ func (a *LK888MiniMaxH3Adapter) PrepareSubmit(_ context.Context, input aigc.Gene
 		"params": params,
 	}
 
-	if notify := lk888Value(raw, "extra_body.notify_url", "extra_body.callback_url"); notify.Exists() && notify.Type == ojson.String && strings.TrimSpace(notify.String()) != "" {
-		payload["notify_url"] = notify.String()
+	// Ignore user-provided notify_url to prevent hijacking; only inject system-configured callback
+	if sysCallback, ok := input.Generation.Metadata["aigc_system_callback_url"].(string); ok && sysCallback != "" {
+		payload["notify_url"] = sysCallback
 	}
 
 	body, err := json.Marshal(payload)
@@ -307,6 +308,11 @@ func (a *LK888MiniMaxH3Adapter) PrepareCancel(_ context.Context, _ aigc.Generati
 // ParseCancel rejects cancellation.
 func (a *LK888MiniMaxH3Adapter) ParseCancel(_ context.Context, _ aigc.GenerationExecutionResponse) error {
 	return fmt.Errorf("%s: task cancellation is not supported", a.Name())
+}
+
+// ParseCallback parses task webhook notification from provider.
+func (a *LK888MiniMaxH3Adapter) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return a.ParsePoll(ctx, resp)
 }
 
 func lk888Dimensions(raw []byte) (resolution, aspectRatio string, err error) {

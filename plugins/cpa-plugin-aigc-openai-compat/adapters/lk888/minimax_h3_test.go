@@ -73,8 +73,8 @@ func TestLK888MiniMaxH3RoutingAndSubmit(t *testing.T) {
 	if ojson.Get(bodyStr, "params.aspect_ratio").String() != "16:9" {
 		t.Fatalf("wrong aspect_ratio: %s", ojson.Get(bodyStr, "params.aspect_ratio").String())
 	}
-	if ojson.Get(bodyStr, "notify_url").String() != "https://example.com/webhook" {
-		t.Fatalf("wrong notify_url: %s", ojson.Get(bodyStr, "notify_url").String())
+	if ojson.Get(bodyStr, "notify_url").Exists() {
+		t.Fatalf("user-provided notify_url must be ignored, got: %s", ojson.Get(bodyStr, "notify_url").String())
 	}
 }
 

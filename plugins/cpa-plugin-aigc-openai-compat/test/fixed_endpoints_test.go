@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/MoeForge/moego/ojson"
@@ -104,5 +105,41 @@ func TestGenericOpenAICompatUsesFixedPaths(t *testing.T) {
 	req, err := driver.PreparePoll(context.Background(), aigc.GenerationPollInput{Generation: aigc.ContentGeneration{Kind: aigc.ContentKindVideo, Provider: "openai-compat", Model: "custom/video-model", ProviderTaskID: "task_test"}})
 	if err != nil || req.URL != "/videos/generations/task_test" {
 		t.Fatalf("generic poll path: %+v %v", req, err)
+	}
+}
+
+func TestCallbackURL_UserIgnored_And_SystemInjected(t *testing.T) {
+	driver := aigcdriver.NewDriver()
+	ctx := context.Background()
+
+	// 1. User passes callback_url in extra_body -> driver without callback_base_url must ignore it
+	userInput := []byte(`{"prompt":"test","seconds":5,"size":"1280x720","extra_body":{"callback_url":"https://evil.com/leak"}}`)
+	gen := aigc.ContentGeneration{
+		ID:    "cg_test_sec",
+		Kind:  aigc.ContentKindVideo,
+		Model: "volcengine/doubao-seedance-2-5",
+		Input: userInput,
+	}
+
+	reqNoConfig, err := driver.PrepareSubmit(ctx, aigc.GenerationSubmitInput{Generation: gen})
+	if err != nil {
+		t.Fatalf("PrepareSubmit failed: %v", err)
+	}
+	if ojson.GetBytes(reqNoConfig.Body, "callback_url").Exists() {
+		t.Fatalf("user-provided callback_url must be ignored when no callback_base_url is configured, got: %s", ojson.GetBytes(reqNoConfig.Body, "callback_url").String())
+	}
+
+	// 2. Driver with callback_base_url configured -> should inject safe callback URL
+	driver.SetCallbackBaseURL("https://cpa.example.com")
+	reqWithConfig, err := driver.PrepareSubmit(ctx, aigc.GenerationSubmitInput{Generation: gen})
+	if err != nil {
+		t.Fatalf("PrepareSubmit with config failed: %v", err)
+	}
+	cbNode := ojson.GetBytes(reqWithConfig.Body, "callback_url")
+	if !cbNode.Exists() || cbNode.String() == "https://evil.com/leak" {
+		t.Fatalf("expected injected system callback_url, got %v", cbNode.Raw)
+	}
+	if !strings.Contains(cbNode.String(), "https://cpa.example.com/aigc/v1/callbacks/volcengine-seedance?gid=cg_test_sec") {
+		t.Fatalf("wrong injected callback_url: %s", cbNode.String())
 	}
 }

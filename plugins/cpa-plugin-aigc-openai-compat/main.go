@@ -38,6 +38,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -133,7 +134,7 @@ func handleMethod(method string, request []byte) ([]byte, int) {
 
 	switch method {
 	case pluginabi.MethodPluginRegister, pluginabi.MethodPluginReconfigure:
-		return handleRegister(), 0
+		return handleRegister(request), 0
 	case pluginabi.MethodPluginShutdown:
 		return mustEnvelope(nil), 0
 
@@ -212,6 +213,17 @@ func handleMethod(method string, request []byte) ([]byte, int) {
 		}
 		return mustEnvelope(nil), 0
 
+	case pluginabi.MethodContentGenerationDriverParseCallback:
+		var req struct {
+			Response aigc.GenerationExecutionResponse `json:"response"`
+		}
+		_ = json.Unmarshal(request, &req)
+		res, err := driver.ParseCallback(ctx, req.Response)
+		if err != nil {
+			return errorEnvelope("parse_callback_failed", err.Error()), 0
+		}
+		return mustEnvelope(res), 0
+
 	default:
 		return errorEnvelope("unsupported_method", fmt.Sprintf("method not supported: %s", method)), 0
 	}
@@ -224,13 +236,45 @@ type rpcRegistration struct {
 	Capabilities  map[string]any     `json:"capabilities"`
 }
 
-// handleRegister 为注册和重新配置调用返回同一份静态能力声明。
-func handleRegister() []byte {
+type rpcLifecycleRequest struct {
+	ConfigYAML    []byte `json:"config_yaml"`
+	SchemaVersion uint32 `json:"schema_version"`
+}
+
+func extractCallbackBaseURL(yamlBytes []byte) string {
+	lines := strings.Split(string(yamlBytes), "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "callback-base-url:") || strings.HasPrefix(trimmed, "callback_base_url:") {
+			parts := strings.SplitN(trimmed, ":", 2)
+			if len(parts) == 2 {
+				val := strings.TrimSpace(parts[1])
+				val = strings.Trim(val, `"'`)
+				return val
+			}
+		}
+	}
+	return ""
+}
+
+// handleRegister 为注册和重新配置调用返回能力声明并同步插件配置。
+func handleRegister(request []byte) []byte {
+	var req rpcLifecycleRequest
+	if len(request) > 0 {
+		_ = json.Unmarshal(request, &req)
+	}
+
+	cbURL := extractCallbackBaseURL(req.ConfigYAML)
+	getDriver().SetCallbackBaseURL(cbURL)
+
 	meta := pluginapi.Metadata{
 		Name:             pluginName,
 		Version:          driver.PluginVersion,
 		Author:           pluginAuthor,
 		GitHubRepository: pluginRepository,
+		ConfigFields: []pluginapi.ConfigField{
+			{Name: "callback-base-url", Type: pluginapi.ConfigFieldTypeString, Description: "公共 Webhook 回调基础地址（配置后向厂商注入回调，未配置则走轮询）"},
+		},
 	}
 
 	caps := map[string]any{

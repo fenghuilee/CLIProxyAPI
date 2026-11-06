@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -107,12 +108,15 @@ func (s *inMemoryStore) Patch(ctx context.Context, req aigc.GenerationPatchReque
 func (s *inMemoryStore) Claim(ctx context.Context, req aigc.GenerationClaimRequest) ([]aigc.ContentGeneration, error) {
 	return nil, nil
 }
+
 func (s *inMemoryStore) Release(ctx context.Context, req aigc.GenerationReleaseRequest) error {
 	return nil
 }
+
 func (s *inMemoryStore) DeleteExpired(ctx context.Context, req aigc.GenerationDeleteExpiredRequest) (int64, error) {
 	return 0, nil
 }
+
 func (s *inMemoryStore) ReapStaleSubmissions(ctx context.Context, req aigc.GenerationReapStaleRequest) ([]aigc.ContentGeneration, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -198,6 +202,10 @@ func (d *testDriver) PrepareCancel(ctx context.Context, input aigc.GenerationCan
 
 func (d *testDriver) ParseCancel(ctx context.Context, resp aigc.GenerationExecutionResponse) error {
 	return nil
+}
+
+func (d *testDriver) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return d.ParsePoll(ctx, resp)
 }
 
 type testExecutor struct {
@@ -425,6 +433,10 @@ func (d *syncSuccessDriver) PrepareCancel(ctx context.Context, input aigc.Genera
 
 func (d *syncSuccessDriver) ParseCancel(ctx context.Context, resp aigc.GenerationExecutionResponse) error {
 	return nil
+}
+
+func (d *syncSuccessDriver) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return d.ParsePoll(ctx, resp)
 }
 
 func TestCoordinator_SubmitDirectSucceeded(t *testing.T) {
@@ -655,5 +667,118 @@ func TestCoordinator_BeforeSubmit_ModifiesGenerationBeforePrepareSubmit(t *testi
 	}
 	if exec.calls != 1 {
 		t.Errorf("executor calls = %d, want 1", exec.calls)
+	}
+}
+
+func TestCoordinator_HandleCallback(t *testing.T) {
+	ctx := context.Background()
+	store := newInMemoryStore()
+	driver := &testDriver{
+		kind:  aigc.ContentKindVideo,
+		model: "test-model",
+	}
+	host := pluginhost.NewTestHost(
+		pluginhost.TestCapabilityRecord{
+			ID:       "store-plugin",
+			Priority: 100,
+			Plugin: pluginapi.Plugin{
+				Capabilities: pluginapi.Capabilities{ContentGenerationStore: store},
+			},
+		},
+		pluginhost.TestCapabilityRecord{
+			ID:       "driver-plugin",
+			Priority: 50,
+			Plugin: pluginapi.Plugin{
+				Capabilities: pluginapi.Capabilities{ContentGenerationDriver: driver},
+			},
+		},
+	)
+
+	coordinator := NewCoordinator(host, nil)
+
+	created, _ := store.Create(ctx, aigc.GenerationCreateRequest{
+		Draft: aigc.ContentGenerationDraft{
+			ID:    "cg_cb_test",
+			Kind:  aigc.ContentKindVideo,
+			Model: "test-model",
+			Metadata: map[string]any{
+				"aigc_callback_token": "valid_token_123",
+			},
+		},
+	})
+	created.Status = aigc.StatusRunning
+	created.Stage = aigc.StageProviderRunning
+	created.ProviderTaskID = "upstream_task_888"
+	store.generations[created.ID] = created
+
+	// 1. Invalid token should fail
+	errBadToken := coordinator.HandleCallback(ctx, "driver-plugin", created.ID, "wrong_token", []byte(`{}`), nil)
+	if errBadToken == nil || !strings.Contains(errBadToken.Error(), "invalid callback token") {
+		t.Fatalf("expected invalid token error, got %v", errBadToken)
+	}
+
+	// 2. Valid token succeeds and marks generation succeeded
+	errValid := coordinator.HandleCallback(ctx, "driver-plugin", created.ID, "valid_token_123", []byte(`{}`), nil)
+	if errValid != nil {
+		t.Fatalf("HandleCallback failed: %v", errValid)
+	}
+
+	final, _ := store.Get(ctx, aigc.GenerationGetRequest{ID: created.ID})
+	if final.Status != aigc.StatusSucceeded || final.Stage != aigc.StageCompleted {
+		t.Fatalf("expected succeeded task, got status=%s stage=%s", final.Status, final.Stage)
+	}
+
+	// 3. Repeated callback on terminal task safely ignored
+	errRepeat := coordinator.HandleCallback(ctx, "driver-plugin", created.ID, "valid_token_123", []byte(`{}`), nil)
+	if errRepeat != nil {
+		t.Fatalf("repeat callback on terminal failed: %v", errRepeat)
+	}
+}
+
+func TestCoordinator_CallbackTokenGeneration(t *testing.T) {
+	ctx := context.Background()
+	store := newInMemoryStore()
+	var submittedMeta map[string]any
+	driver := &testDriver{
+		kind:  aigc.ContentKindVideo,
+		model: "test-model",
+		submitFn: func(input aigc.GenerationSubmitInput) (aigc.GenerationExecutionRequest, error) {
+			submittedMeta = input.Generation.Metadata
+			return aigc.GenerationExecutionRequest{Body: []byte(`{}`)}, nil
+		},
+	}
+	host := pluginhost.NewTestHost(
+		pluginhost.TestCapabilityRecord{
+			ID:       "store-plugin",
+			Priority: 100,
+			Plugin: pluginapi.Plugin{
+				Capabilities: pluginapi.Capabilities{ContentGenerationStore: store},
+			},
+		},
+		pluginhost.TestCapabilityRecord{
+			ID:       "driver-plugin",
+			Priority: 50,
+			Plugin: pluginapi.Plugin{
+				Capabilities: pluginapi.Capabilities{ContentGenerationDriver: driver},
+			},
+		},
+	)
+
+	coordinator := NewCoordinator(host, nil)
+	coordinator.SetExecutor(&testExecutor{})
+
+	created, _ := store.Create(ctx, aigc.GenerationCreateRequest{
+		Draft: aigc.ContentGenerationDraft{
+			ID:    "cg_token_test",
+			Kind:  aigc.ContentKindVideo,
+			Model: "test-model",
+			Input: json.RawMessage(`{"prompt":"cat"}`),
+		},
+	})
+
+	coordinator.AsyncSubmit(created.ID)
+
+	if submittedMeta == nil || submittedMeta["aigc_callback_token"] == nil || submittedMeta["aigc_callback_token"] == "" {
+		t.Fatalf("expected callback token generated in metadata, got: %+v", submittedMeta)
 	}
 }

@@ -322,6 +322,11 @@ func (a *OpenAICompatAdapter) ParseCancel(ctx context.Context, resp aigc.Generat
 	return nil
 }
 
+// ParseCallback parses task webhook notification from provider.
+func (a *OpenAICompatAdapter) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return a.ParsePoll(ctx, resp)
+}
+
 func extractOpenAICompatArtifacts(body []byte) []aigc.ContentGenerationArtifact {
 	var artifacts []aigc.ContentGenerationArtifact
 

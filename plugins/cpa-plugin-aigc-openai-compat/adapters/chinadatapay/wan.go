@@ -165,6 +165,11 @@ func (a *ChinaDataPayWanAdapter) ParseCancel(ctx context.Context, resp aigc.Gene
 	return fmt.Errorf("%s: upstream cancellation is not supported", a.Name())
 }
 
+// ParseCallback parses task webhook notification from provider.
+func (a *ChinaDataPayWanAdapter) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return a.ParsePoll(ctx, resp)
+}
+
 func validGatewayWanTaskID(id string) bool {
 	if !strings.HasPrefix(id, "task_") || len(id) <= 5 {
 		return false

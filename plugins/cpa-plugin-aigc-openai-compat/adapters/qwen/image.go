@@ -253,6 +253,11 @@ func (a *QwenImageAdapter) ParseCancel(ctx context.Context, resp aigc.Generation
 	return nil
 }
 
+// ParseCallback parses task webhook notification from provider.
+func (a *QwenImageAdapter) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return a.ParsePoll(ctx, resp)
+}
+
 func extractQwenArtifacts(body []byte) []aigc.ContentGenerationArtifact {
 	var artifacts []aigc.ContentGenerationArtifact
 

@@ -115,11 +115,9 @@ func (a *ChinaDataPayMiniMaxH3Adapter) PrepareSubmit(_ context.Context, input ai
 		}
 		payload["aigc_watermark"] = watermark.Bool()
 	}
-	if callback := h3Value(raw, "extra_body.callback_url"); callback.Exists() {
-		if callback.Type != ojson.String {
-			return aigc.GenerationExecutionRequest{}, fmt.Errorf("callback_url must be a string")
-		}
-		payload["callback_url"] = callback.String()
+	// Ignore user-provided callback_url to prevent hijacking; only inject system-configured callback
+	if sysCallback, ok := input.Generation.Metadata["aigc_system_callback_url"].(string); ok && sysCallback != "" {
+		payload["callback_url"] = sysCallback
 	}
 	path := "/v2/video_generation"
 	if taskType == "regeneration" {
@@ -432,6 +430,10 @@ func (a *ChinaDataPayMiniMaxH3Adapter) ParseCancel(_ context.Context, resp aigc.
 		return fmt.Errorf("H3 cancel task ID mismatch")
 	}
 	return nil
+}
+
+func (a *ChinaDataPayMiniMaxH3Adapter) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return a.ParsePoll(ctx, resp)
 }
 
 func h3ResponseFailed(raw []byte) bool {

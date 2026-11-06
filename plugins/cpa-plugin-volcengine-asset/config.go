@@ -23,10 +23,10 @@ type Config struct {
 type ChannelConfig struct {
 	Enabled   *bool    `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 	Models    []string `yaml:"models,omitempty" json:"models,omitempty"`
-	AccessKey string   `yaml:"access_key" json:"access_key"`
-	SecretKey string   `yaml:"secret_key" json:"secret_key"`
+	AccessKey string   `yaml:"access-key" json:"access-key"`
+	SecretKey string   `yaml:"secret-key" json:"secret-key"`
 	Project   string   `yaml:"project,omitempty" json:"project,omitempty"`
-	GroupID   string   `yaml:"group_id" json:"group_id"`
+	GroupID   string   `yaml:"group-id" json:"group-id"`
 }
 
 type VolcengineConfig struct {
@@ -39,7 +39,7 @@ type ChinaDataPayConfig struct {
 	Enabled *bool    `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 	Models  []string `yaml:"models,omitempty" json:"models,omitempty"`
 	Token   string   `yaml:"token" json:"token"`
-	GroupID string   `yaml:"group_id,omitempty" json:"group_id,omitempty"`
+	GroupID string   `yaml:"group-id,omitempty" json:"group-id,omitempty"`
 }
 
 func (c ChinaDataPayConfig) enabled() bool { return c.Enabled == nil || *c.Enabled }
@@ -90,9 +90,9 @@ func (c ChinaDataPayConfig) validate() error {
 }
 
 type RuntimeConfig struct {
-	PollIntervalMs     int `yaml:"poll_interval_ms" json:"poll_interval_ms"`
-	PollTimeoutSeconds int `yaml:"poll_timeout_seconds" json:"poll_timeout_seconds"`
-	CacheTTLSeconds    int `yaml:"cache_ttl_seconds" json:"cache_ttl_seconds"`
+	PollIntervalMs     int `yaml:"poll-interval-ms" json:"poll-interval-ms"`
+	PollTimeoutSeconds int `yaml:"poll-timeout-seconds" json:"poll-timeout-seconds"`
+	CacheTTLSeconds    int `yaml:"cache-ttl-seconds" json:"cache-ttl-seconds"`
 }
 
 // WorkflowConfig is internal: the lifecycle never receives credentials.

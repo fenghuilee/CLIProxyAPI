@@ -356,27 +356,27 @@ func pluginRegistration() registration {
 			GitHubRepository: pluginRepository,
 			ConfigFields: []pluginapi.ConfigField{
 				{
-					Name:        "db_host",
+					Name:        "db-host",
 					Type:        pluginapi.ConfigFieldTypeString,
 					Description: "MySQL 主机地址 (默认 127.0.0.1)",
 				},
 				{
-					Name:        "db_port",
+					Name:        "db-port",
 					Type:        pluginapi.ConfigFieldTypeInteger,
 					Description: "MySQL 端口 (默认 3306)",
 				},
 				{
-					Name:        "db_user",
+					Name:        "db-user",
 					Type:        pluginapi.ConfigFieldTypeString,
 					Description: "MySQL 用户名 (默认 root)",
 				},
 				{
-					Name:        "db_password",
+					Name:        "db-password",
 					Type:        pluginapi.ConfigFieldTypeString,
 					Description: "MySQL 密码",
 				},
 				{
-					Name:        "db_name",
+					Name:        "db-name",
 					Type:        pluginapi.ConfigFieldTypeString,
 					Description: "MySQL 数据库名 (默认 cliproxyapi)",
 				},

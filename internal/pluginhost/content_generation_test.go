@@ -77,6 +77,9 @@ func (d *mockDriver) PrepareCancel(ctx context.Context, input aigc.GenerationCan
 func (d *mockDriver) ParseCancel(ctx context.Context, resp aigc.GenerationExecutionResponse) error {
 	return nil
 }
+func (d *mockDriver) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return aigc.GenerationPollResult{Status: aigc.StatusSucceeded, Stage: aigc.StageCompleted, Progress: 100}, nil
+}
 
 type mockObserver struct {
 	events []aigc.ContentGenerationEvent

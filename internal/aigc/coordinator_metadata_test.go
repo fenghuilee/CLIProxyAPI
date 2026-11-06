@@ -46,6 +46,9 @@ func (d *metadataDriver) ParseCancel(_ context.Context, resp aigc.GenerationExec
 	}
 	return nil
 }
+func (d *metadataDriver) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	return d.ParsePoll(ctx, resp)
+}
 
 func TestCoordinatorPreservesAdapterIdentity(t *testing.T) {
 	ctx := context.Background()

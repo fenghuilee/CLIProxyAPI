@@ -3,6 +3,8 @@ package driver
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/aigc"
 )
@@ -14,6 +16,22 @@ var PluginVersion = "v2026-01-01 (build 00:00:00)"
 type Driver struct {
 	registry        *Registry
 	fallbackAdapter FallbackAdapter
+	callbackBaseURL string
+	mu              sync.RWMutex
+}
+
+// SetCallbackBaseURL sets the base URL for asynchronous webhook callbacks.
+func (d *Driver) SetCallbackBaseURL(url string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.callbackBaseURL = strings.TrimRight(url, "/")
+}
+
+// CallbackBaseURL returns the configured base URL for asynchronous webhook callbacks.
+func (d *Driver) CallbackBaseURL() string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.callbackBaseURL
 }
 
 // NewDriver creates an AIGC driver from registered adapter factories.
@@ -108,6 +126,19 @@ func (d *Driver) PrepareSubmit(ctx context.Context, input aigc.GenerationSubmitI
 	if adapter == nil {
 		return aigc.GenerationExecutionRequest{}, fmt.Errorf("no adapter found for model %q (kind: %s)", input.Generation.Model, input.Generation.Kind)
 	}
+
+	cbBase := d.CallbackBaseURL()
+	if cbBase != "" {
+		token, _ := input.Generation.Metadata["aigc_callback_token"].(string)
+		if token == "" {
+			token = "cb_" + input.Generation.ID
+		}
+		if input.Generation.Metadata == nil {
+			input.Generation.Metadata = make(map[string]any)
+		}
+		input.Generation.Metadata["aigc_system_callback_url"] = fmt.Sprintf("%s/aigc/v1/callbacks/%s?gid=%s&token=%s", cbBase, adapter.Name(), input.Generation.ID, token)
+	}
+
 	return adapter.PrepareSubmit(ctx, input)
 }
 
@@ -166,4 +197,17 @@ func (d *Driver) ParseCancel(ctx context.Context, resp aigc.GenerationExecutionR
 		return fmt.Errorf("unknown provider %q in response metadata", provider)
 	}
 	return adapter.ParseCancel(ctx, resp)
+}
+
+// ParseCallback delegates callback response parsing to the adapter resolved by provider metadata.
+func (d *Driver) ParseCallback(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationPollResult, error) {
+	provider, ok := resp.Metadata["provider"].(string)
+	if !ok || provider == "" {
+		return aigc.GenerationPollResult{}, fmt.Errorf("missing provider in response metadata")
+	}
+	adapter := d.registry.GetAdapterByName(provider)
+	if adapter == nil {
+		return aigc.GenerationPollResult{}, fmt.Errorf("unknown provider %q in response metadata", provider)
+	}
+	return adapter.ParseCallback(ctx, resp)
 }
