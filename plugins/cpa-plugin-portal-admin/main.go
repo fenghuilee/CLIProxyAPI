@@ -61,6 +61,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"unsafe"
@@ -79,9 +80,7 @@ const (
 	resourceContentType = "text/html; charset=utf-8"
 )
 
-var (
-	pluginVersion = "v2026-01-01 (build 00:00:00)"
-)
+var pluginVersion = "v2026-01-01 (build 00:00:00)"
 
 var (
 	globalMu       sync.RWMutex
@@ -161,9 +160,6 @@ func cliproxy_plugin_init(host *C.cliproxy_host_api, plugin *C.cliproxy_plugin_a
 	plugin.call = C.cliproxy_plugin_call_fn(C.cliproxyPluginCall)
 	plugin.free_buffer = C.cliproxy_plugin_free_fn(C.cliproxyPluginFree)
 	plugin.shutdown = C.cliproxy_plugin_shutdown_fn(C.cliproxyPluginShutdown)
-
-	// Initialize DB with environment or defaults
-	initOrReconfigure(nil)
 	return 0
 }
 
@@ -238,6 +234,11 @@ func initOrReconfigure(rawRequest []byte) {
 		globalHandler = nil
 	}
 
+	if len(configBytes) == 0 && os.Getenv("PORTAL_DB_HOST") == "" && os.Getenv("PORTAL_DB_DSN") == "" && os.Getenv("MYSQL_DSN") == "" {
+		lastDBErr = fmt.Errorf("portal-admin: database configuration is not provided")
+		return
+	}
+
 	db, errDB := initDB(cfg)
 	if errDB != nil {
 		lastDBErr = errDB
@@ -280,9 +281,7 @@ func initOrReconfigure(rawRequest []byte) {
 func handleMethod(method string, request []byte) ([]byte, error) {
 	switch method {
 	case pluginabi.MethodPluginRegister, pluginabi.MethodPluginReconfigure:
-		if len(request) > 0 {
-			initOrReconfigure(request)
-		}
+		initOrReconfigure(request)
 		return okEnvelope(pluginRegistration())
 
 	case pluginabi.MethodManagementRegister:
