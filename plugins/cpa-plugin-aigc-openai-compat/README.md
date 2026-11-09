@@ -14,6 +14,7 @@ The plugin requires **zero backend configuration**:
 - **Strict response parsing**: Submit, poll, and cancel response parsing resolves the adapter by `provider` in response metadata only, returning errors on missing or unknown provider without probing other adapters.
 - Upstream credentials (API keys, Tokens, BaseURLs) remain entirely **host-owned** in CLIProxyAPI host configurations.
 - Optional request parameters are passed only where supported: `prompt_extend` on Qwen image/video and Wan adapters, `enable_thinking` on Qwen image only (via `extra_body` or request root); when absent, they are omitted so upstream vendor defaults remain untouched.
+- The generic image adapter accepts and forwards explicit `output_format`, `frame_count`, `frame_duration_ms`, `complexity`, and `background` fields for compatible upstreams, including GPT Image 2.6. Frame controls are intended only for GIF requests; callers must omit them for static images. No new defaults are injected, and upstreams retain responsibility for model-specific value/range and pixel-budget validation. GIF/SVG artifact MIME types are recognized from URL paths and decoded image content; MIME detection is not SVG sanitization. This does not change the existing JSON reference-image edit protocol.
 
 ## Documentation
 

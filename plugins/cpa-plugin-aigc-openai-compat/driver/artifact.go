@@ -3,8 +3,11 @@ package driver
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/xml"
 	"fmt"
 	"net/http"
+	"net/url"
+	"path"
 	"regexp"
 	"strings"
 
@@ -24,10 +27,17 @@ func ProcessImageArtifact(artifactType, defaultProvider, rawURL, rawB64 string, 
 	trimmedURL := strings.TrimSpace(rawURL)
 	if strings.HasPrefix(trimmedURL, "http://") || strings.HasPrefix(trimmedURL, "https://") {
 		mime := "image/png"
-		if strings.Contains(trimmedURL, ".jpg") || strings.Contains(trimmedURL, ".jpeg") {
-			mime = "image/jpeg"
-		} else if strings.Contains(trimmedURL, ".webp") {
-			mime = "image/webp"
+		if parsed, errParse := url.Parse(trimmedURL); errParse == nil {
+			switch strings.ToLower(path.Ext(parsed.Path)) {
+			case ".jpg", ".jpeg":
+				mime = "image/jpeg"
+			case ".webp":
+				mime = "image/webp"
+			case ".gif":
+				mime = "image/gif"
+			case ".svg":
+				mime = "image/svg+xml"
+			}
 		}
 		return CreateArtifact(artifactType, defaultProvider, trimmedURL, mime, 0, meta)
 	}
@@ -53,6 +63,13 @@ func ProcessImageArtifact(artifactType, defaultProvider, rawURL, rawB64 string, 
 		if len(data) > 0 {
 			if detected := http.DetectContentType(data); detected != "application/octet-stream" && strings.HasPrefix(detected, "image/") {
 				mimeType = detected
+			} else {
+				// XML sniffing identifies SVG, but does not sanitize its contents.
+				// Storage/rendering boundaries must still enforce their SVG policy.
+				var root struct{ XMLName xml.Name }
+				if errXML := xml.Unmarshal(data, &root); errXML == nil && root.XMLName.Local == "svg" && (root.XMLName.Space == "" || root.XMLName.Space == "http://www.w3.org/2000/svg") {
+					mimeType = "image/svg+xml"
+				}
 			}
 		}
 

@@ -163,9 +163,21 @@ func (a *OpenAICompatAdapter) prepareImageSubmit(gen aigc.ContentGeneration, inp
 		payload["negative_prompt"] = neg
 	}
 
-	bodyBytes, errMarshal := json.Marshal(payload)
-	if errMarshal != nil {
-		return aigc.GenerationExecutionRequest{}, fmt.Errorf("marshal openai-compat image payload: %w", errMarshal)
+	doc := ojson.NewDocString(`{}`)
+	for key, value := range payload {
+		if errSet := doc.Set(key, value); errSet != nil {
+			return aigc.GenerationExecutionRequest{}, fmt.Errorf("build openai-compat image payload: %w", errSet)
+		}
+	}
+	// Preserve explicit output controls, including integer frame parameters.
+	// Do not inject defaults or animation parameters into legacy image requests.
+	for _, key := range []string{"output_format", "frame_count", "frame_duration_ms", "complexity", "background"} {
+		value := ojson.GetBytes(inputBytes, key)
+		if value.Exists() {
+			if errSet := doc.SetRaw(key, value.Raw); errSet != nil {
+				return aigc.GenerationExecutionRequest{}, fmt.Errorf("set image parameter %s: %w", key, errSet)
+			}
+		}
 	}
 
 	header := make(http.Header)
@@ -175,7 +187,7 @@ func (a *OpenAICompatAdapter) prepareImageSubmit(gen aigc.ContentGeneration, inp
 		Method:   http.MethodPost,
 		URL:      targetPath,
 		Header:   header,
-		Body:     bodyBytes,
+		Body:     doc.Bytes(),
 		Model:    gen.Model,
 		Metadata: map[string]any{"provider": "openai-compat", "kind": "image"},
 	}, nil

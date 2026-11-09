@@ -187,3 +187,59 @@ func TestDriver_OpenAICompatFlow(t *testing.T) {
 		t.Fatalf("Artifact = %+v", pollRes.Artifacts[0])
 	}
 }
+
+func TestDriverImage26OutputControlsReachUpstream(t *testing.T) {
+	for _, tc := range []struct{ name, input string }{
+		{"gif", `{"prompt":"a looping star","output_format":"gif","frame_count":4,"frame_duration_ms":150,"complexity":"medium","size":"512x512","n":1,"response_format":"url"}`},
+		{"svg", `{"prompt":"a vector star","output_format":"svg","complexity":"medium","n":1,"response_format":"url"}`},
+		{"transparent_png", `{"prompt":"a star","output_format":"png","background":"transparent","quality":"medium","size":"1024x1024","n":1,"response_format":"url"}`},
+		{"jpeg", `{"prompt":"a star","output_format":"jpeg"}`},
+		{"webp", `{"prompt":"a star","output_format":"webp"}`},
+		{"legacy", `{"prompt":"a star","quality":"low","size":"1024x1024"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			driver := aigcdriver.NewDriver()
+			req, err := driver.PrepareSubmit(context.Background(), aigc.GenerationSubmitInput{
+				Generation: aigc.ContentGeneration{
+					Kind: aigc.ContentKindImage, Model: "ze/gpt-image-2.6", Provider: "openai-compat", Input: []byte(tc.input),
+				},
+			})
+			if err != nil {
+				t.Fatalf("PrepareSubmit: %v", err)
+			}
+			if req.URL != "/images/generations" || req.Header.Get("Content-Type") != "application/json" {
+				t.Fatalf("unexpected transport: %s %v", req.URL, req.Header)
+			}
+			for _, key := range []string{"prompt", "output_format", "frame_count", "frame_duration_ms", "complexity", "background", "n", "response_format", "quality", "size"} {
+				want := ojson.Get(tc.input, key)
+				got := ojson.GetBytes(req.Body, key)
+				if got.Exists() != want.Exists() || got.Raw != want.Raw {
+					t.Errorf("%s = %s, want %s", key, got.Raw, want.Raw)
+				}
+			}
+			if got := ojson.GetBytes(req.Body, "model").String(); got != "ze/gpt-image-2.6" {
+				t.Errorf("model = %q", got)
+			}
+		})
+	}
+}
+
+func TestDriverParseImage26OutputMIME(t *testing.T) {
+	for _, tc := range []struct{ body, mime string }{
+		{`{"data":[{"url":"https://example.com/star.gif?signature=abc"}]}`, "image/gif"},
+		{`{"data":[{"url":"https://example.com/star.svg?signature=abc"}]}`, "image/svg+xml"},
+		{`{"data":[{"url":"https://example.com/star.png"}]}`, "image/png"},
+	} {
+		t.Run(tc.mime, func(t *testing.T) {
+			result, err := aigcdriver.NewDriver().ParseSubmit(context.Background(), aigc.GenerationExecutionResponse{
+				StatusCode: http.StatusOK, Metadata: map[string]any{"provider": "openai-compat"}, Body: []byte(tc.body),
+			})
+			if err != nil || result.Status != aigc.StatusSucceeded || len(result.Artifacts) != 1 {
+				t.Fatalf("ParseSubmit = %+v, %v", result, err)
+			}
+			if result.Artifacts[0].MIMEType != tc.mime {
+				t.Errorf("MIMEType = %q, want %q", result.Artifacts[0].MIMEType, tc.mime)
+			}
+		})
+	}
+}

@@ -1,29 +1,34 @@
 package driver
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/MoeForge/moego/ojson"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/aigc"
 )
 
 var allowedImageTopLevelKeys = map[string]bool{
-	"prompt":          true,
-	"model":           true,
-	"n":               true,
-	"quality":         true,
-	"response_format": true,
-	"size":            true,
-	"style":           true,
-	"user":            true,
-	"image":           true,
-	"images":          true,
-	"image_url":       true,
-	"input_reference": true,
-	"mask":            true,
-	"extra_body":      true,
+	"prompt":            true,
+	"model":             true,
+	"n":                 true,
+	"quality":           true,
+	"response_format":   true,
+	"size":              true,
+	"style":             true,
+	"user":              true,
+	"image":             true,
+	"images":            true,
+	"image_url":         true,
+	"input_reference":   true,
+	"mask":              true,
+	"extra_body":        true,
+	"output_format":     true,
+	"frame_count":       true,
+	"frame_duration_ms": true,
+	"complexity":        true,
+	"background":        true,
 }
 
 var allowedVideoTopLevelKeys = map[string]bool{
@@ -42,9 +47,12 @@ func ValidateOpenAIInput(kind aigc.ContentKind, inputBytes []byte) error {
 		return nil
 	}
 
-	var root map[string]any
-	if err := json.Unmarshal(inputBytes, &root); err != nil {
-		return fmt.Errorf("invalid json body: %w", err)
+	if !ojson.ValidBytes(inputBytes) {
+		return fmt.Errorf("invalid json body")
+	}
+	root := ojson.ParseBytes(inputBytes)
+	if !root.IsObject() && root.Raw != "null" {
+		return fmt.Errorf("invalid json body: expected an object")
 	}
 
 	var allowed map[string]bool
@@ -58,7 +66,7 @@ func ValidateOpenAIInput(kind aigc.ContentKind, inputBytes []byte) error {
 	}
 
 	var unrecognized []string
-	for k := range root {
+	for k := range root.Map() {
 		if !allowed[k] {
 			unrecognized = append(unrecognized, k)
 		}
