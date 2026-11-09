@@ -101,10 +101,26 @@ func (a *OpenAICompatAdapter) prepareImageSubmit(gen aigc.ContentGeneration, inp
 	hasImages := len(images) > 0
 
 	targetPath := submitPath
-	if hasImages && hasPrompt && editPath != "" {
+	operation, _ := gen.Metadata["image_operation"].(string)
+	switch operation {
+	case "generations":
+		if hasImages || hasMask {
+			return aigc.GenerationExecutionRequest{}, fmt.Errorf("reference images require the images/edits endpoint")
+		}
+	case "edits":
+		if !hasImages || !hasPrompt {
+			return aigc.GenerationExecutionRequest{}, fmt.Errorf("image edits require prompt and reference images")
+		}
 		targetPath = editPath
-	} else if hasImages && !hasPrompt {
-		targetPath = "/images/variations"
+	case "":
+		// Preserve existing asynchronous/direct driver callers without an explicit operation.
+		if hasImages && hasPrompt && editPath != "" {
+			targetPath = editPath
+		} else if hasImages && !hasPrompt {
+			targetPath = "/images/variations"
+		}
+	default:
+		return aigc.GenerationExecutionRequest{}, fmt.Errorf("unsupported image operation")
 	}
 
 	if targetPath == editPath {

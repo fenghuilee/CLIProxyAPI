@@ -71,6 +71,8 @@ func (p *SyncPipeline) SetImageExecutor(exec ImageExecutor) {
 
 // Execute runs the complete synchronous image generation pipeline.
 func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncImageResult, *interfaces.ErrorMessage) {
+	// Capture the server-selected operation before policy hooks can replace metadata.
+	imageOperation, _ := req.Metadata["image_operation"].(string)
 	genID := strings.TrimSpace(req.ID)
 	if genID == "" {
 		genID = "cg_" + strings.ReplaceAll(uuid.New().String(), "-", "")
@@ -124,6 +126,13 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 				model = draft.Model
 			}
 		}
+	}
+
+	if imageOperation != "" {
+		if draft.Metadata == nil {
+			draft.Metadata = make(map[string]any)
+		}
+		draft.Metadata["image_operation"] = imageOperation
 	}
 
 	// 2. Persist initial record in store if available
@@ -205,6 +214,12 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 	}
 
 	// 5. PrepareSubmit via driver
+	if imageOperation != "" {
+		if gen.Metadata == nil {
+			gen.Metadata = make(map[string]any)
+		}
+		gen.Metadata["image_operation"] = imageOperation
+	}
 	execReq, errPrep := driver.PrepareSubmit(ctx, aigc.GenerationSubmitInput{
 		Generation: gen,
 	})

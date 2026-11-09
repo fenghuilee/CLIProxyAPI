@@ -326,6 +326,15 @@ func (e *OpenAICompatExecutor) executeImages(ctx context.Context, auth *cliproxy
 	if contentType == "" {
 		contentType = "application/json"
 	}
+	convertedImageEdit := false
+	if endpointPath == openAICompatImagesEditsPath {
+		originalContentType := contentType
+		payload, contentType, errPrepare = helps.PrepareGPTImage26EditMultipart(ctx, payload, baseModel, contentType)
+		if errPrepare != nil {
+			return resp, statusErr{code: http.StatusBadRequest, msg: errPrepare.Error()}
+		}
+		convertedImageEdit = originalContentType != contentType
+	}
 	payload, contentType, errPrepare = helps.ApplyMediaPayloadConfig(e.cfg, e.Identifier(), baseModel, "openai", payload, contentType, req, opts)
 	if errPrepare != nil {
 		return resp, errPrepare
@@ -353,11 +362,15 @@ func (e *OpenAICompatExecutor) executeImages(ctx context.Context, auth *cliproxy
 		authLabel = auth.Label
 		authType, authValue = auth.AccountInfo()
 	}
+	logBody := payload
+	if convertedImageEdit {
+		logBody = []byte("<reference image multipart body omitted>")
+	}
 	helps.RecordAPIRequest(ctx, e.cfg, helps.UpstreamRequestLog{
 		URL:       url,
 		Method:    http.MethodPost,
 		Headers:   httpReq.Header.Clone(),
-		Body:      payload,
+		Body:      logBody,
 		Provider:  e.Identifier(),
 		AuthID:    authID,
 		AuthLabel: authLabel,

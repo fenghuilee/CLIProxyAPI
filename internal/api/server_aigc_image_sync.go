@@ -17,10 +17,12 @@ import (
 )
 
 func (s *Server) aigcGenerateImageSyncHandler(c *gin.Context) {
+	c.Set("aigc_image_operation", "generations")
 	s.handleAIGCSync(c)
 }
 
 func (s *Server) aigcEditImageSyncHandler(c *gin.Context) {
+	c.Set("aigc_image_operation", "edits")
 	s.handleAIGCSync(c)
 }
 
@@ -132,6 +134,7 @@ func (s *Server) handleAIGCSync(c *gin.Context) {
 		DesiredFormat: desiredFormat,
 		APIKey:        callerAPIKey,
 		ClientIP:      clientIP,
+		Metadata:      map[string]any{"image_operation": c.GetString("aigc_image_operation")},
 	})
 
 	if execErr != nil {
