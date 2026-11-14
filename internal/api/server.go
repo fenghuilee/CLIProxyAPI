@@ -204,6 +204,7 @@ func NewServer(cfg *config.Config, authManager *auth.Manager, accessManager *sdk
 
 	engine.Use(corsMiddleware())
 	engine.Use(s.responseCompressionMiddleware())
+	engine.Use(aigcCallbackLoggingMiddleware())
 	openai.SetResponsesWebsocketCompressionEnabled(cfg.Codex.WebsocketCompressionEnabled())
 	s.wsAuthEnabled.Store(cfg.WebsocketAuth)
 	s.exampleAPIKeySafeModeActive.Store(s.exampleAPIKeySafeModeRequired(cfg))
