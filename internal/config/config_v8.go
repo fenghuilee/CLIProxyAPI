@@ -86,6 +86,7 @@ func buildV8Paths() []configPath {
 		{"github-token", "server.github-token"},
 		{"unix-socket", "server.unix-socket"},
 		{"tls", "server.tls"},
+		{"shutdown-timeout", "server.shutdown-timeout"},
 		{"commercial-mode", "server.commercial-mode"},
 		{"discovery", "server.discovery"},
 		{"kv-store", "server.kv-store"},
