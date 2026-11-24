@@ -1,0 +1,913 @@
+package aigc
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/MoeForge/moego/ojson"
+	"github.com/google/uuid"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/interfaces"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/pluginhost"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/aigc"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/api/handlers"
+	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
+	log "github.com/sirupsen/logrus"
+)
+
+// Executor represents the core execution engine that handles ModelRouter, AuthManager, and Provider execution.
+type Executor interface {
+	ExecuteWithAuthManager(ctx context.Context, handlerType, modelName string, rawJSON []byte, alt string) ([]byte, http.Header, *interfaces.ErrorMessage)
+}
+
+// Coordinator coordinates asynchronous content generation lifecycles.
+type Coordinator struct {
+	pluginHost   *pluginhost.Host
+	executor     Executor
+	baseHandler  *handlers.BaseAPIHandler
+	pollInterval time.Duration
+	activePolls  sync.Map
+}
+
+// NewCoordinator creates a new AIGC lifecycle coordinator.
+func NewCoordinator(host *pluginhost.Host, baseHandler *handlers.BaseAPIHandler) *Coordinator {
+	var exec Executor
+	if baseHandler != nil {
+		exec = baseHandler
+	}
+	return &Coordinator{
+		pluginHost:  host,
+		executor:    exec,
+		baseHandler: baseHandler,
+	}
+}
+
+// SetExecutor overrides the executor (useful for testing).
+func (c *Coordinator) SetExecutor(exec Executor) {
+	c.executor = exec
+}
+
+// SetPollInterval sets the background polling interval (useful for testing).
+func (c *Coordinator) SetPollInterval(interval time.Duration) {
+	c.pollInterval = interval
+}
+
+// CreateGeneration creates and initiates an asynchronous content generation task.
+func (c *Coordinator) CreateGeneration(ctx context.Context, kind aigc.ContentKind, draft aigc.ContentGenerationDraft) (aigc.ContentGeneration, error) {
+	if draft.ID == "" {
+		draft.ID = "cg_" + strings.ReplaceAll(uuid.New().String(), "-", "")
+	}
+	draft.Kind = kind
+	if draft.Model == "" && len(draft.Input) > 0 {
+		draft.Model = ojson.GetBytes(draft.Input, "model").String()
+	}
+
+	// 1. BeforeCreate mutators
+	mutResp, errMutate := c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+		Phase: aigc.PhaseBeforeCreate,
+		Draft: &draft,
+	})
+	if errMutate != nil {
+		return aigc.ContentGeneration{}, fmt.Errorf("before create mutation: %w", errMutate)
+	}
+	if mutResp.Reject {
+		return aigc.ContentGeneration{}, fmt.Errorf("%w: %s (%s)", aigc.ErrMutationRejected, mutResp.ErrorMessage, mutResp.ErrorCode)
+	}
+	if mutResp.Draft != nil {
+		draft = *mutResp.Draft
+	}
+
+	// 2. Obtain Store Plugin
+	store, _, okStore := c.pluginHost.ContentGenerationStore()
+	if !okStore || store == nil {
+		return aigc.ContentGeneration{}, aigc.ErrStoreNotConfigured
+	}
+
+	// 3. Create initial Generation in store
+	createdGen, errCreate := store.Create(ctx, aigc.GenerationCreateRequest{
+		Draft: draft,
+	})
+	if errCreate != nil {
+		return aigc.ContentGeneration{}, fmt.Errorf("store create generation: %w", errCreate)
+	}
+
+	// 4. Emit GenerationCreated event
+	c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
+		GenerationID: createdGen.ID,
+		Revision:     createdGen.Revision,
+		EventType:    aigc.EventGenerationCreated,
+		Stage:        createdGen.Stage,
+		Status:       createdGen.Status,
+		CreatedAt:    time.Now(),
+	})
+
+	// 5. Asynchronously trigger submit pipeline
+	go c.AsyncSubmit(createdGen.ID)
+
+	return createdGen, nil
+}
+
+// AsyncSubmit runs the submit pipeline in background for a newly accepted generation.
+func (c *Coordinator) AsyncSubmit(id string) {
+	ctx := context.Background()
+	store, _, okStore := c.pluginHost.ContentGenerationStore()
+	if !okStore || store == nil {
+		log.Errorf("aigc: async submit for %s failed: store not configured", id)
+		return
+	}
+
+	gen, errGet := store.Get(ctx, aigc.GenerationGetRequest{ID: id})
+	if errGet != nil {
+		log.Errorf("aigc: async submit for %s failed to get gen: %v", id, errGet)
+		return
+	}
+
+	if gen.Status != aigc.StatusAccepted || gen.Stage == aigc.StageSubmitting {
+		return
+	}
+
+	// Claim before preparing or sending anything. Recovery and initial submission
+	// must compete on the same durable revision, not after the upstream side effect.
+	claimed, errClaim := store.Patch(ctx, aigc.GenerationPatchRequest{
+		ID:               gen.ID,
+		ExpectedRevision: gen.Revision,
+		Set:              map[string]any{"stage": aigc.StageSubmitting},
+	})
+	if errClaim != nil {
+		if !errors.Is(errClaim, aigc.ErrRevisionConflict) {
+			log.Errorf("aigc: failed to claim submission for %s: %v", id, errClaim)
+		}
+		return
+	}
+	gen = claimed
+
+	// 1. Mutate BeforeSubmit (readiness checks, asset activation, payload modifications)
+	mutRespSubmit, errMutateSubmit := c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+		Phase:      aigc.PhaseBeforeSubmit,
+		Generation: gen,
+	})
+	if errMutateSubmit != nil || mutRespSubmit.Reject {
+		errCode := aigc.ErrCodeMutationRejected
+		errMsg := "submission rejected by policy"
+		if mutRespSubmit.ErrorCode != "" {
+			errCode = mutRespSubmit.ErrorCode
+		}
+		if mutRespSubmit.ErrorMessage != "" {
+			errMsg = mutRespSubmit.ErrorMessage
+		}
+		if errMutateSubmit != nil {
+			errMsg = errMutateSubmit.Error()
+		}
+		c.failGeneration(ctx, gen, errCode, errMsg)
+		return
+	}
+	if mutRespSubmit.Generation != nil {
+		gen = *mutRespSubmit.Generation
+	}
+
+	// 2. Find driver
+	driver, driverPluginID, okDriver := c.pluginHost.ContentGenerationDriverFor(ctx, gen.Kind, gen.Model)
+	if !okDriver || driver == nil {
+		c.failGeneration(ctx, gen, aigc.ErrCodeDriverNotFound, fmt.Sprintf("no driver available for kind=%s model=%s", gen.Kind, gen.Model))
+		return
+	}
+
+	// 3. PrepareSubmit via driver
+	if gen.Metadata == nil {
+		gen.Metadata = make(map[string]any)
+	}
+	if _, ok := gen.Metadata["aigc_callback_token"].(string); !ok {
+		gen.Metadata["aigc_callback_token"] = strings.ReplaceAll(uuid.New().String(), "-", "")[:16]
+	}
+
+	execReq, errPrep := driver.PrepareSubmit(ctx, aigc.GenerationSubmitInput{Generation: gen})
+	if errPrep != nil {
+		c.failGeneration(ctx, gen, aigc.ErrCodeInvalidParameter, errPrep.Error())
+		return
+	}
+
+	// Persist the prepared provider before execution.
+	// Never send if this CAS fails (for example, cancellation).
+	prepared, errPersist := store.Patch(ctx, aigc.GenerationPatchRequest{
+		ID:               gen.ID,
+		ExpectedRevision: gen.Revision,
+		Set: map[string]any{
+			"provider": driverPluginID,
+		},
+	})
+	if errPersist != nil {
+		log.Errorf("aigc: failed to persist submit request for %s; request not sent: %v", id, errPersist)
+		return
+	}
+	// Keep any in-memory mutation output while advancing the persisted revision.
+	gen.Revision = prepared.Revision
+
+	// 4. Execute via CPA AuthManager
+	var respBody []byte
+	var respHeaders http.Header
+	var execErr *interfaces.ErrorMessage
+
+	startSubmit := time.Now()
+	if c.executor != nil {
+		execCtx := handlers.WithRequestMetadata(ctx, map[string]any{
+			cliproxyexecutor.CustomEndpointMetadataKey: execReq.URL,
+			cliproxyexecutor.RequestPathMetadataKey:    execReq.URL,
+			cliproxyexecutor.HTTPMethodMetadataKey:     execReq.Method,
+			"aigc_single_attempt":                      true,
+		})
+		if len(execReq.Header) > 0 {
+			execCtx = handlers.WithRequestHeaders(execCtx, execReq.Header)
+		}
+		respBody, respHeaders, execErr = c.executor.ExecuteWithAuthManager(execCtx, "openai", gen.Model, execReq.Body, "")
+	} else {
+		execErr = &interfaces.ErrorMessage{Error: fmt.Errorf("no executor configured")}
+	}
+	submitDurationMs := time.Since(startSubmit).Milliseconds()
+
+	if execErr != nil {
+		norm := aigc.NormalizeError(driverPluginID, execErr.StatusCode, execErr.Body, execErr.Error)
+		c.failGeneration(ctx, gen, norm.Code, norm.Message)
+		return
+	}
+
+	// 5. Parse submit response via driver
+	submitStatusCode := http.StatusOK
+	submitResult, errParse := driver.ParseSubmit(ctx, aigc.GenerationExecutionResponse{
+		StatusCode: submitStatusCode,
+		Header:     respHeaders,
+		Body:       respBody,
+		Metadata:   execReq.Metadata,
+	})
+	if errParse != nil {
+		norm := aigc.NormalizeError(driverPluginID, http.StatusInternalServerError, respBody, errParse)
+		c.failGeneration(ctx, gen, norm.Code, norm.Message)
+		return
+	}
+
+	status := submitResult.Status
+	if status == "" {
+		status = aigc.StatusRunning
+	}
+	stage := submitResult.Stage
+	if stage == "" {
+		if status == aigc.StatusSucceeded {
+			stage = aigc.StageCompleted
+		} else {
+			stage = aigc.StageProviderRunning
+		}
+	}
+
+	patchSet := map[string]any{
+		"status":           status,
+		"stage":            stage,
+		"progress":         submitResult.Progress,
+		"provider":         driverPluginID,
+		"provider_task_id": submitResult.ProviderTaskID,
+	}
+	if len(submitResult.Output) > 0 {
+		patchSet["output"] = submitResult.Output
+	}
+	if submitResult.ErrorCode != "" {
+		patchSet["error_code"] = submitResult.ErrorCode
+		patchSet["error_message"] = submitResult.ErrorMessage
+	}
+
+	artifactsToPersist := submitResult.Artifacts
+	if len(artifactsToPersist) > 0 || len(submitResult.Output) > 0 {
+		persistGen := gen
+		persistGen.Artifacts = submitResult.Artifacts
+		persistGen.Output = submitResult.Output
+		mutResp, _ := c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+			Phase:      aigc.PhaseBeforeComplete,
+			Generation: persistGen,
+			Metadata: map[string]any{
+				"artifacts": submitResult.Artifacts,
+			},
+		})
+		if len(mutResp.Artifacts) > 0 {
+			artifactsToPersist = mutResp.Artifacts
+		}
+		if mutResp.Generation != nil {
+			if len(mutResp.Generation.Output) > 0 {
+				patchSet["output"] = mutResp.Generation.Output
+			}
+			if len(mutResp.Generation.Metadata) > 0 {
+				patchSet["metadata"] = mutResp.Generation.Metadata
+			}
+		}
+	}
+
+	// Keep the driver's internal adapter identity without replacing the host plugin ID.
+	if adapter, ok := execReq.Metadata["provider"].(string); ok && adapter != "" {
+		source := gen.Metadata
+		if updated, ok := patchSet["metadata"].(map[string]any); ok {
+			source = updated
+		}
+		metadata := make(map[string]any, len(source)+1)
+		for key, value := range source {
+			metadata[key] = value
+		}
+		metadata["aigc_adapter"] = adapter
+		if required, ok := execReq.Metadata["cancel_requires_confirmation"].(bool); ok {
+			metadata["aigc_cancel_requires_confirmation"] = required
+		}
+		if backoff, ok := execReq.Metadata["poll_backoff"].(bool); ok {
+			metadata["aigc_poll_backoff"] = backoff
+		}
+		patchSet["metadata"] = metadata
+	}
+
+	if submitResult.Usage != nil {
+		patchSet["input_tokens"] = submitResult.Usage.InputTokens
+		patchSet["output_tokens"] = submitResult.Usage.OutputTokens
+		patchSet["total_tokens"] = submitResult.Usage.TotalTokens
+	} else {
+		patchSet["input_tokens"] = int64(0)
+		patchSet["output_tokens"] = int64(0)
+		patchSet["total_tokens"] = int64(0)
+	}
+
+	submitEvent := aigc.ContentGenerationEvent{
+		GenerationID:     gen.ID,
+		Revision:         gen.Revision,
+		EventType:        aigc.EventProviderSubmitted,
+		Stage:            stage,
+		Status:           status,
+		ProviderRequest:  execReq.Body,
+		ProviderResponse: respBody,
+		HTTPStatus:       submitStatusCode,
+		DurationMs:       submitDurationMs,
+		CreatedAt:        time.Now(),
+	}
+
+	patchGen, errPatch := store.Patch(ctx, aigc.GenerationPatchRequest{
+		ID:               gen.ID,
+		ExpectedRevision: gen.Revision,
+		Set:              patchSet,
+		Artifacts:        artifactsToPersist,
+		Events:           []aigc.ContentGenerationEvent{submitEvent},
+	})
+	if errPatch != nil {
+		log.Warnf("aigc: failed to patch submit result for %s: %v", gen.ID, errPatch)
+		return
+	}
+	gen = patchGen
+
+	c.pluginHost.EmitContentGenerationEvent(ctx, submitEvent)
+
+	if gen.Status == aigc.StatusSucceeded {
+		c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
+			GenerationID: gen.ID,
+			Revision:     gen.Revision,
+			EventType:    aigc.EventGenerationSucceeded,
+			Stage:        gen.Stage,
+			Status:       gen.Status,
+			CreatedAt:    time.Now(),
+		})
+		_, _ = c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+			Phase:      aigc.PhaseOnSucceeded,
+			Generation: gen,
+		})
+	} else if gen.Status == aigc.StatusFailed {
+		c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
+			GenerationID: gen.ID,
+			Revision:     gen.Revision,
+			EventType:    aigc.EventGenerationFailed,
+			Stage:        gen.Stage,
+			Status:       gen.Status,
+			CreatedAt:    time.Now(),
+		})
+		_, _ = c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+			Phase:      aigc.PhaseOnFailed,
+			Generation: gen,
+		})
+	}
+
+	// Start active background polling until completion
+	if gen.Status == aigc.StatusRunning && gen.ProviderTaskID != "" {
+		c.StartPolling(gen.ID, driver)
+	}
+}
+
+// StartPolling launches a single background polling goroutine if one is not already active.
+func (c *Coordinator) StartPolling(id string, driver aigc.ContentGenerationDriver) bool {
+	if id == "" || driver == nil {
+		return false
+	}
+	if _, loaded := c.activePolls.LoadOrStore(id, struct{}{}); loaded {
+		return false
+	}
+
+	go func() {
+		defer c.activePolls.Delete(id)
+		pollCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		c.pollUntilComplete(pollCtx, id, driver)
+	}()
+	return true
+}
+
+// IsPolling reports whether a background polling goroutine is currently active for the given generation ID.
+func (c *Coordinator) IsPolling(id string) bool {
+	if id == "" {
+		return false
+	}
+	_, ok := c.activePolls.Load(id)
+	return ok
+}
+
+// pollUntilComplete periodically polls the provider in the background until the generation reaches a terminal state.
+func (c *Coordinator) pollUntilComplete(ctx context.Context, id string, driver aigc.ContentGenerationDriver) {
+	defer c.activePolls.Delete(id)
+	store, _, okStore := c.pluginHost.ContentGenerationStore()
+	if !okStore || store == nil {
+		return
+	}
+
+	initial, errGet := store.Get(ctx, aigc.GenerationGetRequest{ID: id})
+	if errGet != nil || aigc.IsTerminalStatus(initial.Status) {
+		return
+	}
+	interval := generationPollInterval(c.pollInterval, initial.Metadata)
+
+	delay := interval
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			gen, errGet := store.Get(ctx, aigc.GenerationGetRequest{ID: id})
+			if errGet != nil || aigc.IsTerminalStatus(gen.Status) || gen.Status != aigc.StatusRunning || gen.ProviderTaskID == "" {
+				return
+			}
+			polled := c.pollGeneration(ctx, store, driver, gen)
+			if aigc.IsTerminalStatus(polled.Status) {
+				return
+			}
+			backoff, _ := gen.Metadata["aigc_poll_backoff"].(bool)
+			// Failed execution/parsing leaves the stored revision unchanged.
+			delay = nextGenerationPollDelay(interval, delay, backoff && polled.Revision == gen.Revision)
+			timer.Reset(delay)
+		}
+	}
+}
+
+// generationPollInterval returns the polling cadence, defaulting to 5s unless configured (e.g. in tests).
+func generationPollInterval(configured time.Duration, _ map[string]any) time.Duration {
+	if configured > 0 {
+		return configured
+	}
+	return 5 * time.Second
+}
+
+// nextGenerationPollDelay implements opt-in backoff without changing successful polling cadence.
+func nextGenerationPollDelay(base, previous time.Duration, retry bool) time.Duration {
+	if !retry {
+		return base
+	}
+	limit := 30 * time.Second
+	if base > limit {
+		limit = base
+	}
+	if previous >= limit/2 {
+		return limit
+	}
+	return previous * 2
+}
+
+// GetGeneration retrieves generation details from store without triggering side-effect polling.
+func (c *Coordinator) GetGeneration(ctx context.Context, id string) (aigc.ContentGeneration, error) {
+	store, _, okStore := c.pluginHost.ContentGenerationStore()
+	if !okStore || store == nil {
+		return aigc.ContentGeneration{}, aigc.ErrStoreNotConfigured
+	}
+
+	return store.Get(ctx, aigc.GenerationGetRequest{ID: id})
+}
+
+func (c *Coordinator) pollGeneration(ctx context.Context, store aigc.ContentGenerationStore, driver aigc.ContentGenerationDriver, gen aigc.ContentGeneration) aigc.ContentGeneration {
+	pollReq, errPrep := driver.PreparePoll(ctx, aigc.GenerationPollInput{Generation: gen})
+	if errPrep != nil {
+		log.Debugf("aigc: driver prepare poll failed for %s: %v", gen.ID, errPrep)
+		return gen
+	}
+
+	var respBody []byte
+	var respHeaders http.Header
+	var execErr *interfaces.ErrorMessage
+
+	startPoll := time.Now()
+	if c.executor != nil {
+		execCtx := handlers.WithRequestMetadata(ctx, map[string]any{
+			cliproxyexecutor.CustomEndpointMetadataKey: pollReq.URL,
+			cliproxyexecutor.RequestPathMetadataKey:    pollReq.URL,
+			cliproxyexecutor.HTTPMethodMetadataKey:     pollReq.Method,
+		})
+		if len(pollReq.Header) > 0 {
+			execCtx = handlers.WithRequestHeaders(execCtx, pollReq.Header)
+		}
+		respBody, respHeaders, execErr = c.executor.ExecuteWithAuthManager(execCtx, "openai", gen.Model, pollReq.Body, "")
+	}
+	pollDurationMs := time.Since(startPoll).Milliseconds()
+
+	if execErr != nil {
+		log.Warnf("aigc: poll execution failed for %s: %v", gen.ID, execErr.Error)
+		terminal, _ := pollReq.Metadata["fail_on_query_client_error"].(bool)
+		if !terminal || (execErr.StatusCode != http.StatusBadRequest && execErr.StatusCode != http.StatusUnauthorized && execErr.StatusCode != http.StatusNotFound) {
+			return gen
+		}
+		respBody = execErr.Body
+	}
+
+	statusCode := http.StatusOK
+	if execErr != nil {
+		statusCode = execErr.StatusCode
+	}
+	pollResult, errParse := driver.ParsePoll(ctx, aigc.GenerationExecutionResponse{
+		StatusCode: statusCode,
+		Header:     respHeaders,
+		Body:       respBody,
+		Metadata:   pollReq.Metadata,
+	})
+	if errParse != nil {
+		log.Warnf("aigc: driver parse poll failed for %s: %v", gen.ID, errParse)
+		return gen
+	}
+
+	pollEvent := aigc.ContentGenerationEvent{
+		GenerationID:     gen.ID,
+		Revision:         gen.Revision,
+		EventType:        aigc.EventProviderPolled,
+		Stage:            pollResult.Stage,
+		Status:           pollResult.Status,
+		ProviderRequest:  pollReq.Body,
+		ProviderResponse: respBody,
+		HTTPStatus:       statusCode,
+		DurationMs:       pollDurationMs,
+		CreatedAt:        time.Now(),
+	}
+
+	updated, errApply := c.applyGenerationResult(ctx, store, gen, pollResult, false, pollEvent)
+	if errApply != nil {
+		log.Debugf("aigc: failed to patch poll result for %s: %v", gen.ID, errApply)
+		return gen
+	}
+	return updated
+}
+
+// HandleCallback processes an asynchronous webhook callback from a provider.
+func (c *Coordinator) HandleCallback(ctx context.Context, provider string, genID string, token string, body []byte, headers http.Header) error {
+	genID = strings.TrimSpace(genID)
+	if genID == "" {
+		return fmt.Errorf("missing generation id")
+	}
+
+	store, _, okStore := c.pluginHost.ContentGenerationStore()
+	if !okStore || store == nil {
+		return aigc.ErrStoreNotConfigured
+	}
+
+	gen, errGet := store.Get(ctx, aigc.GenerationGetRequest{ID: genID})
+	if errGet != nil {
+		return errGet
+	}
+
+	// Idempotent completion check: if already terminal, ignore safely
+	if aigc.IsTerminalStatus(gen.Status) {
+		return nil
+	}
+
+	// Token validation if token was configured/saved on generation
+	if expectedToken, ok := gen.Metadata["aigc_callback_token"].(string); ok && expectedToken != "" {
+		if token != expectedToken {
+			return fmt.Errorf("invalid callback token")
+		}
+	}
+
+	driver, _, okDriver := c.pluginHost.ContentGenerationDriverFor(ctx, gen.Kind, gen.Model)
+	if !okDriver || driver == nil {
+		return fmt.Errorf("no driver available for kind=%s model=%s", gen.Kind, gen.Model)
+	}
+
+	respMetadata := map[string]any{
+		"provider": gen.Provider,
+		"task_id":  gen.ProviderTaskID,
+	}
+	if adapter, ok := gen.Metadata["aigc_adapter"].(string); ok && adapter != "" {
+		respMetadata["provider"] = adapter
+	}
+
+	result, errParse := driver.ParseCallback(ctx, aigc.GenerationExecutionResponse{
+		StatusCode: http.StatusOK,
+		Header:     headers,
+		Body:       body,
+		Metadata:   respMetadata,
+	})
+	if errParse != nil {
+		return fmt.Errorf("parse callback: %w", errParse)
+	}
+
+	_, errApply := c.applyGenerationResult(ctx, store, gen, result, true)
+	return errApply
+}
+
+func (c *Coordinator) applyGenerationResult(ctx context.Context, store aigc.ContentGenerationStore, gen aigc.ContentGeneration, pollResult aigc.GenerationPollResult, isCallback bool, events ...aigc.ContentGenerationEvent) (aigc.ContentGeneration, error) {
+	patchSet := map[string]any{
+		"progress": pollResult.Progress,
+	}
+	if pollResult.Status != "" && pollResult.Status != gen.Status {
+		patchSet["status"] = pollResult.Status
+	}
+	if pollResult.Stage != "" && pollResult.Stage != gen.Stage {
+		patchSet["stage"] = pollResult.Stage
+	}
+	if len(pollResult.Output) > 0 {
+		patchSet["output"] = pollResult.Output
+	}
+	if pollResult.ErrorCode != "" {
+		patchSet["error_code"] = pollResult.ErrorCode
+		patchSet["error_message"] = pollResult.ErrorMessage
+	}
+
+	if len(pollResult.Metadata) > 0 {
+		metadata := make(map[string]any, len(gen.Metadata)+len(pollResult.Metadata))
+		for key, value := range gen.Metadata {
+			metadata[key] = value
+		}
+		for key, value := range pollResult.Metadata {
+			metadata[key] = value
+		}
+		patchSet["metadata"] = metadata
+	}
+
+	if pollResult.Usage != nil {
+		patchSet["input_tokens"] = pollResult.Usage.InputTokens
+		patchSet["output_tokens"] = pollResult.Usage.OutputTokens
+		patchSet["total_tokens"] = pollResult.Usage.TotalTokens
+	}
+	artifactsToPersist := pollResult.Artifacts
+	if len(artifactsToPersist) > 0 || len(pollResult.Output) > 0 {
+		persistGen := gen
+		persistGen.Artifacts = pollResult.Artifacts
+		persistGen.Output = pollResult.Output
+		if metadata, ok := patchSet["metadata"].(map[string]any); ok {
+			persistGen.Metadata = metadata
+		}
+		mutResp, _ := c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+			Phase:      aigc.PhaseBeforeComplete,
+			Generation: persistGen,
+			Metadata: map[string]any{
+				"artifacts": pollResult.Artifacts,
+			},
+		})
+		if len(mutResp.Artifacts) > 0 {
+			artifactsToPersist = mutResp.Artifacts
+		}
+		if mutResp.Generation != nil {
+			if len(mutResp.Generation.Output) > 0 {
+				patchSet["output"] = mutResp.Generation.Output
+			}
+			if len(mutResp.Generation.Metadata) > 0 {
+				patchSet["metadata"] = mutResp.Generation.Metadata
+			}
+		}
+	}
+
+	patchGen, errPatch := store.Patch(ctx, aigc.GenerationPatchRequest{
+		ID:               gen.ID,
+		ExpectedRevision: gen.Revision,
+		Set:              patchSet,
+		Artifacts:        artifactsToPersist,
+		Events:           events,
+	})
+	if errPatch != nil {
+		return gen, errPatch
+	}
+	gen = patchGen
+
+	if len(events) > 0 {
+		for _, ev := range events {
+			c.pluginHost.EmitContentGenerationEvent(ctx, ev)
+		}
+	} else {
+		eventType := aigc.EventProviderPolled
+		if isCallback {
+			eventType = "provider.callback"
+		}
+		c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
+			GenerationID: gen.ID,
+			Revision:     gen.Revision,
+			EventType:    eventType,
+			Stage:        gen.Stage,
+			Status:       gen.Status,
+			CreatedAt:    time.Now(),
+		})
+	}
+
+	if gen.Status == aigc.StatusSucceeded {
+		c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
+			GenerationID: gen.ID,
+			Revision:     gen.Revision,
+			EventType:    aigc.EventGenerationSucceeded,
+			Stage:        gen.Stage,
+			Status:       gen.Status,
+			CreatedAt:    time.Now(),
+		})
+		_, _ = c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+			Phase:      aigc.PhaseOnSucceeded,
+			Generation: gen,
+		})
+	} else if gen.Status == aigc.StatusFailed {
+		c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
+			GenerationID: gen.ID,
+			Revision:     gen.Revision,
+			EventType:    aigc.EventGenerationFailed,
+			Stage:        gen.Stage,
+			Status:       gen.Status,
+			CreatedAt:    time.Now(),
+		})
+		_, _ = c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+			Phase:      aigc.PhaseOnFailed,
+			Generation: gen,
+		})
+	}
+
+	return gen, nil
+}
+
+// CancelGeneration cancels an active content generation task.
+func (c *Coordinator) CancelGeneration(ctx context.Context, id string) (aigc.ContentGeneration, error) {
+	store, _, okStore := c.pluginHost.ContentGenerationStore()
+	if !okStore || store == nil {
+		return aigc.ContentGeneration{}, aigc.ErrStoreNotConfigured
+	}
+
+	gen, errGet := store.Get(ctx, aigc.GenerationGetRequest{ID: id})
+	if errGet != nil {
+		return aigc.ContentGeneration{}, errGet
+	}
+
+	if aigc.IsTerminalStatus(gen.Status) {
+		if gen.Status == aigc.StatusCanceled {
+			return gen, nil
+		}
+		return aigc.ContentGeneration{}, aigc.ErrGenerationCompleted
+	}
+
+	mutResp, errMutate := c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+		Phase:      aigc.PhaseBeforeCancel,
+		Generation: gen,
+	})
+	if errMutate != nil || mutResp.Reject {
+		errMsg := "cancel rejected by policy"
+		if mutResp.ErrorMessage != "" {
+			errMsg = mutResp.ErrorMessage
+		}
+		if errMutate != nil {
+			errMsg = errMutate.Error()
+		}
+		return aigc.ContentGeneration{}, fmt.Errorf("%w: %s", aigc.ErrMutationRejected, errMsg)
+	}
+	if mutResp.Generation != nil {
+		gen = *mutResp.Generation
+	}
+
+	// Try upstream cancel if running
+	if gen.Status == aigc.StatusRunning && gen.ProviderTaskID != "" {
+		required, _ := gen.Metadata["aigc_cancel_requires_confirmation"].(bool)
+		driver, _, okDriver := c.pluginHost.ContentGenerationDriverFor(ctx, gen.Kind, gen.Model)
+		if required && (!okDriver || driver == nil || c.executor == nil) {
+			return aigc.ContentGeneration{}, fmt.Errorf("upstream cancellation confirmation is required but unavailable")
+		}
+		if okDriver && driver != nil {
+			cancelReq, errPrep := driver.PrepareCancel(ctx, aigc.GenerationCancelInput{Generation: gen})
+			if required && errPrep != nil {
+				return aigc.ContentGeneration{}, fmt.Errorf("prepare upstream cancellation: %w", errPrep)
+			}
+			if errPrep == nil && c.executor != nil {
+				execCtx := handlers.WithRequestMetadata(ctx, map[string]any{
+					cliproxyexecutor.CustomEndpointMetadataKey: cancelReq.URL,
+					cliproxyexecutor.RequestPathMetadataKey:    cancelReq.URL,
+					cliproxyexecutor.HTTPMethodMetadataKey:     cancelReq.Method,
+				})
+				if len(cancelReq.Header) > 0 {
+					execCtx = handlers.WithRequestHeaders(execCtx, cancelReq.Header)
+				}
+				respBody, respHeaders, execErr := c.executor.ExecuteWithAuthManager(execCtx, "openai", gen.Model, cancelReq.Body, "")
+				if execErr != nil {
+					return aigc.ContentGeneration{}, fmt.Errorf("upstream cancellation failed (HTTP %d)", execErr.StatusCode)
+				}
+				if execErr == nil {
+					errParse := driver.ParseCancel(ctx, aigc.GenerationExecutionResponse{
+						StatusCode: http.StatusOK,
+						Header:     respHeaders,
+						Body:       respBody,
+						Metadata:   cancelReq.Metadata,
+					})
+					if errParse != nil {
+						return aigc.ContentGeneration{}, fmt.Errorf("parse upstream cancellation: %w", errParse)
+					}
+				}
+			}
+		}
+	}
+
+	patchGen, errPatch := store.Patch(ctx, aigc.GenerationPatchRequest{
+		ID:               gen.ID,
+		ExpectedRevision: gen.Revision,
+		Set: map[string]any{
+			"status": aigc.StatusCanceled,
+			"stage":  aigc.StageCanceled,
+		},
+	})
+	if errPatch != nil {
+		return aigc.ContentGeneration{}, fmt.Errorf("cancel patch failed: %w", errPatch)
+	}
+
+	c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
+		GenerationID: patchGen.ID,
+		Revision:     patchGen.Revision,
+		EventType:    aigc.EventGenerationCanceled,
+		Stage:        patchGen.Stage,
+		Status:       patchGen.Status,
+		CreatedAt:    time.Now(),
+	})
+
+	_, _ = c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+		Phase:      aigc.PhaseOnCanceled,
+		Generation: patchGen,
+	})
+
+	return patchGen, nil
+}
+
+func (c *Coordinator) failGeneration(ctx context.Context, gen aigc.ContentGeneration, code, msg string) {
+	if gen.ID == "" {
+		return
+	}
+	store, _, okStore := c.pluginHost.ContentGenerationStore()
+	if !okStore || store == nil {
+		return
+	}
+
+	norm := aigc.NormalizeError("", 500, []byte(msg), errors.New(msg))
+	finalCode := norm.Code
+	if code != "" && code != "ProviderSubmitFailed" && code != "ParseSubmitFailed" && code != "PrepareSubmitFailed" && code != "DriverNotFound" {
+		finalCode = code
+	}
+	finalMsg := norm.Message
+	if finalMsg == "" {
+		finalMsg = msg
+	}
+
+	patchGen, errPatch := store.Patch(ctx, aigc.GenerationPatchRequest{
+		ID:               gen.ID,
+		ExpectedRevision: gen.Revision,
+		Set: map[string]any{
+			"status":        aigc.StatusFailed,
+			"stage":         aigc.StageFailed,
+			"error_code":    finalCode,
+			"error_message": finalMsg,
+		},
+	})
+	if errPatch != nil {
+		// Retry with latest revision in case of concurrent update
+		if latest, errGet := store.Get(ctx, aigc.GenerationGetRequest{ID: gen.ID}); errGet == nil {
+			patchGen, errPatch = store.Patch(ctx, aigc.GenerationPatchRequest{
+				ID:               latest.ID,
+				ExpectedRevision: latest.Revision,
+				Set: map[string]any{
+					"status":        aigc.StatusFailed,
+					"stage":         aigc.StageFailed,
+					"error_code":    finalCode,
+					"error_message": finalMsg,
+				},
+			})
+		}
+	}
+	if errPatch != nil {
+		log.Warnf("aigc: failed to mark generation failed for %s: %v", gen.ID, errPatch)
+		return
+	}
+
+	c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
+		GenerationID: patchGen.ID,
+		Revision:     patchGen.Revision,
+		EventType:    aigc.EventGenerationFailed,
+		Stage:        patchGen.Stage,
+		Status:       patchGen.Status,
+		CreatedAt:    time.Now(),
+	})
+
+	_, _ = c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
+		Phase:      aigc.PhaseOnFailed,
+		Generation: patchGen,
+	})
+}

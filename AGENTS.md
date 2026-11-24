@@ -42,6 +42,7 @@ go build -o test-output ./cmd/server && rm test-output # Verify compile (REQUIRE
 - `test/` — Cross-module integration tests
 
 ## Code Conventions
+- Under `plugins/`, keep tests for `xxx.go` in a single sibling `xxx_test.go`. Put plugin-wide registration and wiring tests in `main_test.go`, not in a standalone test package or directory. Do not add empty test companions or placeholder source files.
 - Keep changes small and simple (KISS)
 - Comments in English only
 - If editing code that already contains non-English comments, translate them to English (don’t add new non-English comments)

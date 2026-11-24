@@ -2,11 +2,17 @@ FROM golang:1.26-bookworm AS builder
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential git && rm -rf /var/lib/apt/lists/*
+RUN sed -i \
+    -e 's/deb.debian.org/mirrors.aliyun.com/g' \
+    -e 's/security.debian.org/mirrors.aliyun.com/g' \
+    /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends build-essential git \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY go.mod go.sum ./
 
-RUN go mod download
+RUN GOPROXY=https://goproxy.cn,direct go mod download
 
 COPY . .
 
@@ -18,7 +24,13 @@ RUN CGO_ENABLED=1 GOOS=linux go build -buildvcs=false -ldflags="-s -w -X 'main.V
 
 FROM debian:bookworm
 
-RUN apt-get update && apt-get install -y --no-install-recommends tzdata ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN sed -i \
+    -e 's/deb.debian.org/mirrors.aliyun.com/g' \
+    -e 's/security.debian.org/mirrors.aliyun.com/g' \
+    /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends tzdata ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir /CLIProxyAPI
 

@@ -24,6 +24,8 @@ type Config struct {
 	Host string `yaml:"host" json:"-"`
 	// Port is the network port on which the API server will listen.
 	Port int `yaml:"port" json:"-"`
+	// UnixSocket is the optional Unix Domain Socket path on which the API server will listen.
+	UnixSocket string `yaml:"unix-socket" json:"-"`
 
 	// ServerID is the stable deployment UUID from server.server-id, or a
 	// process-local identity when the file cannot be written. It is not public JSON.

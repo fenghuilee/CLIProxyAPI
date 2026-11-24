@@ -1413,6 +1413,13 @@ func (m *Manager) executeMixedOnce(ctx context.Context, providers []string, req 
 			errExec = markUpstreamExecutionAttemptFromContext(execCtx, errExec)
 			durationExec := time.Since(startExec)
 			if errExec != nil {
+				if hasUpstreamExecutionAttempt(errExec) {
+					upstreamErr = errExec
+				}
+				if single, _ := execOpts.Metadata["aigc_single_attempt"].(bool); single {
+					m.MarkResult(execCtx, Result{AuthID: auth.ID, Provider: provider, Model: resultModel, RouteModel: routeModel, Error: resultErrorFromError(errExec), Options: execOpts})
+					return cliproxyexecutor.Response{}, wrapRequestStopError(errExec)
+				}
 				if errCtx := execCtx.Err(); errCtx != nil {
 					m.recordCanceledUpstreamCooldown(execCtx, auth, provider, resultModel, routeModel, execOpts, errExec, false, executionSeq)
 					return cliproxyexecutor.Response{}, errCtx
