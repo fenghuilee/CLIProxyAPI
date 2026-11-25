@@ -251,7 +251,6 @@ type UsageStatistic struct {
 	InputTokens         int64           `gorm:"not null;default:0" json:"input_tokens"`
 	OutputTokens        int64           `gorm:"not null;default:0" json:"output_tokens"`
 	ReasoningTokens     int64           `gorm:"not null;default:0" json:"reasoning_tokens"`
-	CachedTokens        int64           `gorm:"not null;default:0" json:"cached_tokens"`
 	CacheReadTokens     int64           `gorm:"not null;default:0" json:"cache_read_tokens"`
 	CacheCreationTokens int64           `gorm:"not null;default:0" json:"cache_creation_tokens"`
 	TotalTokens         int64           `gorm:"not null;default:0" json:"total_tokens"`
@@ -313,7 +312,7 @@ func (u UsageStatistic) ToDTO() UsageStatisticDTO {
 		InputTokens:         u.InputTokens,
 		OutputTokens:        u.OutputTokens,
 		ReasoningTokens:     u.ReasoningTokens,
-		CachedTokens:        u.CachedTokens,
+		CachedTokens:        u.CacheReadTokens,
 		CacheReadTokens:     u.CacheReadTokens,
 		CacheCreationTokens: u.CacheCreationTokens,
 		TotalTokens:         u.TotalTokens,
@@ -327,37 +326,41 @@ func (u UsageStatistic) ToDTO() UsageStatisticDTO {
 
 // UsageStatisticHourly represents aggregated usage by hour.
 type UsageStatisticHourly struct {
-	ID           uint64          `gorm:"primaryKey;autoIncrement" json:"id"`
-	StatHour     time.Time       `gorm:"not null;index" json:"stat_hour"`
-	UserID       uint64          `gorm:"index;not null" json:"user_id"`
-	APIKeyID     uint64          `gorm:"index;not null" json:"api_key_id"`
-	Model        string          `gorm:"size:128;not null" json:"model"`
-	RequestCount int             `gorm:"not null;default:0" json:"request_count"`
-	SuccessCount int             `gorm:"not null;default:0" json:"success_count"`
-	FailedCount  int             `gorm:"not null;default:0" json:"failed_count"`
-	InputTokens  int64           `gorm:"not null;default:0" json:"input_tokens"`
-	OutputTokens int64           `gorm:"not null;default:0" json:"output_tokens"`
-	TotalTokens  int64           `gorm:"not null;default:0" json:"total_tokens"`
-	TotalCost    decimal.Decimal `gorm:"type:decimal(16,8);not null;default:0" json:"total_cost"`
-	AvgLatencyMs int             `gorm:"not null;default:0" json:"avg_latency_ms"`
+	ID                  uint64          `gorm:"primaryKey;autoIncrement" json:"id"`
+	StatHour            time.Time       `gorm:"not null;index" json:"stat_hour"`
+	UserID              uint64          `gorm:"index;not null" json:"user_id"`
+	APIKeyID            uint64          `gorm:"index;not null" json:"api_key_id"`
+	Model               string          `gorm:"size:128;not null" json:"model"`
+	RequestCount        int             `gorm:"not null;default:0" json:"request_count"`
+	SuccessCount        int             `gorm:"not null;default:0" json:"success_count"`
+	FailedCount         int             `gorm:"not null;default:0" json:"failed_count"`
+	InputTokens         int64           `gorm:"not null;default:0" json:"input_tokens"`
+	OutputTokens        int64           `gorm:"not null;default:0" json:"output_tokens"`
+	CacheReadTokens     int64           `gorm:"not null;default:0" json:"cache_read_tokens"`
+	CacheCreationTokens int64           `gorm:"not null;default:0" json:"cache_creation_tokens"`
+	TotalTokens         int64           `gorm:"not null;default:0" json:"total_tokens"`
+	TotalCost           decimal.Decimal `gorm:"type:decimal(16,8);not null;default:0" json:"total_cost"`
+	AvgLatencyMs        int             `gorm:"not null;default:0" json:"avg_latency_ms"`
 }
 
 func (UsageStatisticHourly) TableName() string { return "usage_statistics_hourly" }
 
 // UsageStatisticDaily represents aggregated usage by day.
 type UsageStatisticDaily struct {
-	ID           uint64          `gorm:"primaryKey;autoIncrement" json:"id"`
-	StatDate     string          `gorm:"size:10;not null;index" json:"stat_date"`
-	UserID       uint64          `gorm:"index;not null" json:"user_id"`
-	APIKeyID     uint64          `gorm:"index;not null" json:"api_key_id"`
-	Model        string          `gorm:"size:128;not null" json:"model"`
-	RequestCount int             `gorm:"not null;default:0" json:"request_count"`
-	SuccessCount int             `gorm:"not null;default:0" json:"success_count"`
-	FailedCount  int             `gorm:"not null;default:0" json:"failed_count"`
-	InputTokens  int64           `gorm:"not null;default:0" json:"input_tokens"`
-	OutputTokens int64           `gorm:"not null;default:0" json:"output_tokens"`
-	TotalTokens  int64           `gorm:"not null;default:0" json:"total_tokens"`
-	TotalCost    decimal.Decimal `gorm:"type:decimal(16,8);not null;default:0" json:"total_cost"`
+	ID                  uint64          `gorm:"primaryKey;autoIncrement" json:"id"`
+	StatDate            string          `gorm:"size:10;not null;index" json:"stat_date"`
+	UserID              uint64          `gorm:"index;not null" json:"user_id"`
+	APIKeyID            uint64          `gorm:"index;not null" json:"api_key_id"`
+	Model               string          `gorm:"size:128;not null" json:"model"`
+	RequestCount        int             `gorm:"not null;default:0" json:"request_count"`
+	SuccessCount        int             `gorm:"not null;default:0" json:"success_count"`
+	FailedCount         int             `gorm:"not null;default:0" json:"failed_count"`
+	InputTokens         int64           `gorm:"not null;default:0" json:"input_tokens"`
+	OutputTokens        int64           `gorm:"not null;default:0" json:"output_tokens"`
+	CacheReadTokens     int64           `gorm:"not null;default:0" json:"cache_read_tokens"`
+	CacheCreationTokens int64           `gorm:"not null;default:0" json:"cache_creation_tokens"`
+	TotalTokens         int64           `gorm:"not null;default:0" json:"total_tokens"`
+	TotalCost           decimal.Decimal `gorm:"type:decimal(16,8);not null;default:0" json:"total_cost"`
 }
 
 func (UsageStatisticDaily) TableName() string { return "usage_statistics_daily" }
