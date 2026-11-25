@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS ` + "`content_generations`" + ` (
     INDEX ` + "`idx_cg_total_tokens`" + ` (` + "`total_tokens`" + `),
     INDEX ` + "`idx_cg_lease`" + ` (` + "`lease_until`" + `),
     INDEX ` + "`idx_cg_expires`" + ` (` + "`expires_at`" + `)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AIGC 内容生成任务主表';`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='(生产)_AIGC内容生成任务主表';`
 
 	SchemaContentGenerationEvents = `
 CREATE TABLE IF NOT EXISTS ` + "`content_generation_events`" + ` (
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS ` + "`content_generation_events`" + ` (
     INDEX ` + "`idx_cge_gen_id`" + ` (` + "`generation_id`" + `),
     INDEX ` + "`idx_cge_event_type`" + ` (` + "`event_type`" + `, ` + "`created_at`" + `),
     INDEX ` + "`idx_cge_http_status`" + ` (` + "`http_status`" + `)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AIGC 内容生成事件流表';`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='(生产)_AIGC生命周期事件流表';`
 
 	SchemaContentGenerationArtifacts = `
 CREATE TABLE IF NOT EXISTS ` + "`content_generation_artifacts`" + ` (
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS ` + "`content_generation_artifacts`" + ` (
     INDEX ` + "`idx_cga_gen_id`" + ` (` + "`generation_id`" + `),
     INDEX ` + "`idx_cga_artifact_type`" + ` (` + "`artifact_type`" + `),
     INDEX ` + "`idx_cga_expires`" + ` (` + "`expires_at`" + `)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AIGC 内容生成产物元数据表';`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='(生产)_AIGC多模态产物元数据表';`
 )
 
 // EnsureSchema executes DDL statements to ensure all AIGC tables exist.

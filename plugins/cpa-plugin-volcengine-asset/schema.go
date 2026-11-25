@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS ` + "`volcengine_assets`" + ` (
     UNIQUE KEY ` + "`uk_url_sha256`" + ` (` + "`url_sha256`" + `),
     INDEX ` + "`idx_asset_id`" + ` (` + "`asset_id`" + `),
     INDEX ` + "`idx_status`" + ` (` + "`status`" + `)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='火山方舟多模态 Asset 资源映射表';`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='(生产)_火山方舟多模态Asset资源映射表';`
 
 // EnsureSchema creates the volcengine_assets table if it does not exist.
 func EnsureSchema(ctx context.Context, client DBClient) error {

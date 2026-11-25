@@ -16,4 +16,4 @@ const SchemaChannelAssets = `CREATE TABLE IF NOT EXISTS channel_assets (
  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
  UNIQUE KEY uk_scope_url (scope, url_sha256),
  INDEX idx_scope_asset (scope, asset_id)
- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='渠道级多模态 Asset 资源映射表';`
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='(生产)_渠道级多模态Asset资源映射表';`
