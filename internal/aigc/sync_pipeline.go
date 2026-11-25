@@ -15,6 +15,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/aigc"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/api/handlers"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
+	log "github.com/sirupsen/logrus"
 )
 
 // ImageExecutor defines the interface for executing image model requests with AuthManager.
@@ -136,26 +137,7 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 	}
 
 	// 2. Persist initial record in store if available
-	var store aigc.ContentGenerationStore
-	var createdGen aigc.ContentGeneration
-	var okStore bool
-	if p.pluginHost != nil {
-		store, _, okStore = p.pluginHost.ContentGenerationStore()
-		if okStore && store != nil {
-			var errCreate error
-			createdGen, errCreate = store.Create(ctx, aigc.GenerationCreateRequest{Draft: draft})
-			if errCreate == nil {
-				p.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
-					GenerationID: genID,
-					Revision:     createdGen.Revision,
-					EventType:    aigc.EventGenerationCreated,
-					Stage:        aigc.StageCreated,
-					Status:       aigc.StatusAccepted,
-					CreatedAt:    time.Now(),
-				})
-			}
-		}
-	}
+	recorder, createdGen := p.beginSyncGeneration(ctx, draft, genID)
 
 	gen := aigc.ContentGeneration{
 		ID:        genID,
@@ -183,7 +165,7 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 			if errMutateSubmit != nil {
 				errMsg = errMutateSubmit.Error()
 			}
-			p.failStoreRecord(ctx, store, createdGen, "MutationRejected", errMsg)
+			p.failStoreRecord(ctx, recorder, "MutationRejected", errMsg)
 			return SyncImageResult{}, &interfaces.ErrorMessage{
 				StatusCode: http.StatusBadRequest,
 				Error:      fmt.Errorf("%s", errMsg),
@@ -206,7 +188,7 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 	}
 	driver, driverPluginID, okDriver := p.pluginHost.ContentGenerationDriverFor(ctx, aigc.ContentKindImage, model)
 	if !okDriver || driver == nil {
-		p.failStoreRecord(ctx, store, createdGen, aigc.ErrCodeDriverNotFound, fmt.Sprintf("no image generation driver available for model %q", model))
+		p.failStoreRecord(ctx, recorder, aigc.ErrCodeDriverNotFound, fmt.Sprintf("no image generation driver available for model %q", model))
 		return SyncImageResult{}, &interfaces.ErrorMessage{
 			StatusCode: http.StatusBadRequest,
 			Error:      fmt.Errorf("no image generation driver available for model %q", model),
@@ -224,7 +206,7 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 		Generation: gen,
 	})
 	if errPrep != nil {
-		p.failStoreRecord(ctx, store, createdGen, aigc.ErrCodeInvalidParameter, errPrep.Error())
+		p.failStoreRecord(ctx, recorder, aigc.ErrCodeInvalidParameter, errPrep.Error())
 		return SyncImageResult{}, &interfaces.ErrorMessage{
 			StatusCode: http.StatusBadRequest,
 			Error:      fmt.Errorf("failed to prepare image request: %w", errPrep),
@@ -236,6 +218,7 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 	var respHeaders http.Header
 	var execErr *interfaces.ErrorMessage
 
+	startSubmit := time.Now()
 	if p.imageExecutor != nil {
 		execCtx := handlers.WithRequestMetadata(ctx, map[string]any{
 			cliproxyexecutor.CustomEndpointMetadataKey: execReq.URL,
@@ -252,10 +235,30 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 			Error:      fmt.Errorf("no image executor configured"),
 		}
 	}
+	submitDurationMs := time.Since(startSubmit).Milliseconds()
+
+	// The provider.submitted event records what was sent upstream and what came
+	// back. It is buffered first and flushed with the terminal state, so a run that
+	// never reaches the store cannot leave an orphan event behind.
+	providerEvent := aigc.ContentGenerationEvent{
+		GenerationID:    genID,
+		EventType:       aigc.EventProviderSubmitted,
+		ProviderRequest: syncEventPayload(execReq.Body),
+		DurationMs:      submitDurationMs,
+	}
 
 	if execErr != nil {
 		norm := aigc.NormalizeError(driverPluginID, execErr.StatusCode, execErr.Body, execErr.Error)
-		p.failStoreRecord(ctx, store, createdGen, norm.Code, norm.Message)
+		upstreamStatus := execErr.StatusCode
+		if upstreamStatus <= 0 {
+			upstreamStatus = http.StatusBadGateway
+		}
+		providerEvent.Stage = aigc.StageFailed
+		providerEvent.Status = aigc.StatusFailed
+		providerEvent.ProviderResponse = syncEventPayload(execErr.Body)
+		providerEvent.HTTPStatus = upstreamStatus
+		recorder.record(providerEvent)
+		p.failStoreRecord(ctx, recorder, norm.Code, norm.Message)
 		return SyncImageResult{}, execErr
 	}
 
@@ -275,7 +278,12 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 		if errMsg == "" && errParse != nil {
 			errMsg = fmt.Sprintf("failed to parse upstream image response: %v", errParse)
 		}
-		p.failStoreRecord(ctx, store, createdGen, errCode, errMsg)
+		providerEvent.Stage = aigc.StageFailed
+		providerEvent.Status = aigc.StatusFailed
+		providerEvent.ProviderResponse = syncEventPayload(respBody)
+		providerEvent.HTTPStatus = http.StatusOK
+		recorder.record(providerEvent)
+		p.failStoreRecord(ctx, recorder, errCode, errMsg)
 		return SyncImageResult{}, &interfaces.ErrorMessage{
 			StatusCode: http.StatusBadGateway,
 			Error:      fmt.Errorf("%s", errMsg),
@@ -312,7 +320,7 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 	}
 
 	// 9. Persist Succeeded status in store
-	if store != nil && okStore {
+	if recorder.enabled() {
 		patchSet := map[string]any{
 			"status":           aigc.StatusSucceeded,
 			"stage":            aigc.StageCompleted,
@@ -320,23 +328,38 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 			"provider":         driverPluginID,
 			"provider_task_id": submitResult.ProviderTaskID,
 			"output":           finalOutput,
+			"completed_at":     time.Now(),
+			"duration_ms":      submitDurationMs,
 		}
 		if len(finalMetadata) > 0 {
 			patchSet["metadata"] = finalMetadata
 		}
-		_, _ = store.Patch(ctx, aigc.GenerationPatchRequest{
-			ID:               genID,
-			ExpectedRevision: createdGen.Revision,
-			Set:              patchSet,
-			Artifacts:        finalArtifacts,
-		})
-		p.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
+		if usage := submitResult.Usage; usage != nil {
+			patchSet["input_tokens"] = usage.InputTokens
+			patchSet["output_tokens"] = usage.OutputTokens
+			patchSet["total_tokens"] = usage.TotalTokens
+		} else {
+			patchSet["input_tokens"] = int64(0)
+			patchSet["output_tokens"] = int64(0)
+			patchSet["total_tokens"] = int64(0)
+		}
+
+		// The upstream call is complete before PhaseBeforeComplete rewrites the
+		// artifacts; the event is appended in provider order after generation.created.
+		providerEvent.Stage = aigc.StageCompleted
+		providerEvent.Status = aigc.StatusSucceeded
+		providerEvent.ProviderResponse = syncEventPayload(respBody)
+		providerEvent.HTTPStatus = http.StatusOK
+		recorder.record(providerEvent)
+		recorder.record(aigc.ContentGenerationEvent{
 			GenerationID: genID,
 			EventType:    aigc.EventGenerationSucceeded,
 			Stage:        aigc.StageCompleted,
 			Status:       aigc.StatusSucceeded,
-			CreatedAt:    time.Now(),
 		})
+		if errFlush := recorder.flush(ctx, patchSet, finalArtifacts); errFlush != nil {
+			log.Warnf("aigc: failed to persist synchronous generation %s: %v", genID, errFlush)
+		}
 	}
 
 	// 10. PhaseOnSucceeded (Billing settlement, audit hooks)
@@ -362,8 +385,48 @@ func (p *SyncPipeline) Execute(ctx context.Context, req SyncImageRequest) (SyncI
 	}, nil
 }
 
-func (p *SyncPipeline) failStoreRecord(ctx context.Context, store aigc.ContentGenerationStore, createdGen aigc.ContentGeneration, code, msg string) {
-	if store == nil || createdGen.ID == "" {
+// beginSyncGeneration creates the store record for a synchronous run and opens the
+// event recorder that will carry its lifecycle events.
+func (p *SyncPipeline) beginSyncGeneration(ctx context.Context, draft aigc.ContentGenerationDraft, genID string) (*syncGenerationRecorder, aigc.ContentGeneration) {
+	if p.pluginHost == nil {
+		return nil, aigc.ContentGeneration{}
+	}
+	store, _, okStore := p.pluginHost.ContentGenerationStore()
+	if !okStore || store == nil {
+		return nil, aigc.ContentGeneration{}
+	}
+	created, errCreate := store.Create(ctx, aigc.GenerationCreateRequest{Draft: draft})
+	if errCreate != nil {
+		log.Warnf("aigc: failed to create synchronous generation %s: %v", genID, errCreate)
+		return nil, aigc.ContentGeneration{}
+	}
+
+	// Mark the record as submitting before the upstream call. Recovery claims any
+	// accepted generation that is not submitting, so leaving it at created would let
+	// the worker re-submit a request this process is already executing.
+	claimed, errClaim := store.Patch(ctx, aigc.GenerationPatchRequest{
+		ID:               created.ID,
+		ExpectedRevision: created.Revision,
+		Set:              map[string]any{"stage": aigc.StageSubmitting},
+	})
+	if errClaim != nil {
+		log.Warnf("aigc: failed to claim synchronous generation %s: %v", genID, errClaim)
+	} else {
+		created = claimed
+	}
+
+	recorder := newSyncGenerationRecorder(store, created, p.pluginHost.EmitContentGenerationEvent)
+	recorder.record(aigc.ContentGenerationEvent{
+		GenerationID: genID,
+		EventType:    aigc.EventGenerationCreated,
+		Stage:        aigc.StageCreated,
+		Status:       aigc.StatusAccepted,
+	})
+	return recorder, created
+}
+
+func (p *SyncPipeline) failStoreRecord(ctx context.Context, recorder *syncGenerationRecorder, code, msg string) {
+	if !recorder.enabled() {
 		return
 	}
 	norm := aigc.NormalizeError("", 500, []byte(msg), fmt.Errorf("%s", msg))
@@ -376,23 +439,19 @@ func (p *SyncPipeline) failStoreRecord(ctx context.Context, store aigc.ContentGe
 		finalMsg = msg
 	}
 
-	_, _ = store.Patch(ctx, aigc.GenerationPatchRequest{
-		ID:               createdGen.ID,
-		ExpectedRevision: createdGen.Revision,
-		Set: map[string]any{
-			"status":        aigc.StatusFailed,
-			"stage":         aigc.StageFailed,
-			"error_code":    finalCode,
-			"error_message": finalMsg,
-		},
+	recorder.record(aigc.ContentGenerationEvent{
+		GenerationID: recorder.created.ID,
+		EventType:    aigc.EventGenerationFailed,
+		Stage:        aigc.StageFailed,
+		Status:       aigc.StatusFailed,
 	})
-	if p.pluginHost != nil {
-		p.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
-			GenerationID: createdGen.ID,
-			EventType:    aigc.EventGenerationFailed,
-			Stage:        aigc.StageFailed,
-			Status:       aigc.StatusFailed,
-			CreatedAt:    time.Now(),
-		})
+	if errFlush := recorder.flush(ctx, map[string]any{
+		"status":        aigc.StatusFailed,
+		"stage":         aigc.StageFailed,
+		"error_code":    finalCode,
+		"error_message": finalMsg,
+		"completed_at":  time.Now(),
+	}, nil); errFlush != nil {
+		log.Warnf("aigc: failed to persist synchronous failure %s: %v", recorder.created.ID, errFlush)
 	}
 }

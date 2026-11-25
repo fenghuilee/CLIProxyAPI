@@ -315,3 +315,177 @@ func TestSyncPipeline_BeforeCompleteMutation(t *testing.T) {
 		t.Errorf("expected mutated metadata in store, got: %+v", gen.Metadata)
 	}
 }
+
+// usageSyncDriver returns a synchronous image result carrying provider token usage.
+type usageSyncDriver struct {
+	syncSuccessDriver
+	usage *aigc.GenerationUsage
+}
+
+func (d *usageSyncDriver) ParseSubmit(ctx context.Context, resp aigc.GenerationExecutionResponse) (aigc.GenerationSubmitResult, error) {
+	result, errParse := d.syncSuccessDriver.ParseSubmit(ctx, resp)
+	result.Usage = d.usage
+	return result, errParse
+}
+
+func TestSyncPipeline_PersistsEventsAndTokenUsage(t *testing.T) {
+	store := newInMemoryStore()
+	driver := &usageSyncDriver{
+		syncSuccessDriver: syncSuccessDriver{kind: aigc.ContentKindImage, model: "bter3/gpt-image-2.6-sunburst"},
+		usage:             &aigc.GenerationUsage{InputTokens: 132, OutputTokens: 4160, TotalTokens: 4292},
+	}
+	host := pluginhost.NewTestHost(
+		pluginhost.TestCapabilityRecord{ID: "store-plugin", Plugin: pluginapi.Plugin{Capabilities: pluginapi.Capabilities{ContentGenerationStore: store}}},
+		pluginhost.TestCapabilityRecord{ID: "driver-plugin", Plugin: pluginapi.Plugin{Capabilities: pluginapi.Capabilities{ContentGenerationDriver: driver}}},
+	)
+
+	pipeline := NewSyncPipeline(host, nil)
+	pipeline.SetImageExecutor(&testSyncImageExecutor{})
+
+	result, errMsg := pipeline.Execute(context.Background(), SyncImageRequest{
+		ID: "cg_sync_events", Model: "bter3/gpt-image-2.6-sunburst", Input: []byte(`{"prompt":"a red apple"}`),
+	})
+	if errMsg != nil {
+		t.Fatalf("pipeline.Execute failed: %v", errMsg.Error)
+	}
+
+	gen, errGet := store.Get(context.Background(), aigc.GenerationGetRequest{ID: result.ID})
+	if errGet != nil {
+		t.Fatalf("failed to get stored gen: %v", errGet)
+	}
+	if gen.InputTokens != 132 || gen.OutputTokens != 4160 || gen.TotalTokens != 4292 {
+		t.Errorf("token fields = (%d,%d,%d), want (132,4160,4292)", gen.InputTokens, gen.OutputTokens, gen.TotalTokens)
+	}
+	if gen.CompletedAt == nil {
+		t.Error("expected completed_at to be persisted for a synchronous run")
+	}
+
+	events := store.recordedEvents(result.ID)
+	wantTypes := []aigc.EventType{
+		aigc.EventGenerationCreated,
+		aigc.EventProviderSubmitted,
+		aigc.EventGenerationSucceeded,
+	}
+	if len(events) != len(wantTypes) {
+		t.Fatalf("persisted events = %d (%v), want %d", len(events), eventTypes(events), len(wantTypes))
+	}
+	for i, want := range wantTypes {
+		if events[i].EventType != want {
+			t.Errorf("event[%d] type = %q, want %q", i, events[i].EventType, want)
+		}
+		if events[i].GenerationID != result.ID {
+			t.Errorf("event[%d] generation = %q, want %q", i, events[i].GenerationID, result.ID)
+		}
+	}
+	if len(events[1].ProviderRequest) == 0 || len(events[1].ProviderResponse) == 0 {
+		t.Error("expected provider.submitted event to capture request and response payloads")
+	}
+	if events[1].HTTPStatus != http.StatusOK || events[1].DurationMs < 0 {
+		t.Errorf("provider.submitted event http_status=%d duration_ms=%d", events[1].HTTPStatus, events[1].DurationMs)
+	}
+}
+
+func TestSyncPipeline_MarksSubmittingBeforeUpstreamCall(t *testing.T) {
+	// A synchronous run keeps its record in a non-claimable stage while the upstream
+	// call is in flight; otherwise the recovery worker submits the same request again.
+	store := newInMemoryStore()
+	driver := &syncSuccessDriver{kind: aigc.ContentKindImage, model: "bter3/gpt-image-2.6-sunburst"}
+	host := pluginhost.NewTestHost(
+		pluginhost.TestCapabilityRecord{ID: "store-plugin", Plugin: pluginapi.Plugin{Capabilities: pluginapi.Capabilities{ContentGenerationStore: store}}},
+		pluginhost.TestCapabilityRecord{ID: "driver-plugin", Plugin: pluginapi.Plugin{Capabilities: pluginapi.Capabilities{ContentGenerationDriver: driver}}},
+	)
+
+	var stageDuringCall aigc.GenerationStage
+	exec := &testSyncImageExecutor{executeFn: func(context.Context, string, string, []byte, string) ([]byte, http.Header, *interfaces.ErrorMessage) {
+		gen, errGet := store.Get(context.Background(), aigc.GenerationGetRequest{ID: "cg_sync_inflight"})
+		if errGet != nil {
+			t.Errorf("failed to read generation during upstream call: %v", errGet)
+			return nil, nil, &interfaces.ErrorMessage{StatusCode: http.StatusInternalServerError, Error: errGet}
+		}
+		stageDuringCall = gen.Stage
+		return []byte(`{"data":[{"url":"https://example.com/generated.png"}]}`), http.Header{}, nil
+	}}
+	pipeline := NewSyncPipeline(host, nil)
+	pipeline.SetImageExecutor(exec)
+
+	if _, errMsg := pipeline.Execute(context.Background(), SyncImageRequest{
+		ID: "cg_sync_inflight", Model: "bter3/gpt-image-2.6-sunburst", Input: []byte(`{"prompt":"a red apple"}`),
+	}); errMsg != nil {
+		t.Fatalf("pipeline.Execute failed: %v", errMsg.Error)
+	}
+	if stageDuringCall != aigc.StageSubmitting {
+		t.Errorf("stage during upstream call = %q, want %q", stageDuringCall, aigc.StageSubmitting)
+	}
+}
+
+func TestSyncPipeline_PersistsEventsOnUpstreamFailure(t *testing.T) {
+	store := newInMemoryStore()
+	driver := &syncSuccessDriver{kind: aigc.ContentKindImage, model: "bter3/gpt-image-2.6-sunburst"}
+	host := pluginhost.NewTestHost(
+		pluginhost.TestCapabilityRecord{ID: "store-plugin", Plugin: pluginapi.Plugin{Capabilities: pluginapi.Capabilities{ContentGenerationStore: store}}},
+		pluginhost.TestCapabilityRecord{ID: "driver-plugin", Plugin: pluginapi.Plugin{Capabilities: pluginapi.Capabilities{ContentGenerationDriver: driver}}},
+	)
+
+	exec := &testSyncImageExecutor{executeFn: func(context.Context, string, string, []byte, string) ([]byte, http.Header, *interfaces.ErrorMessage) {
+		return nil, nil, &interfaces.ErrorMessage{
+			StatusCode: http.StatusBadGateway,
+			Body:       []byte(`{"error":{"message":"upstream exploded"}}`),
+			Error:      fmt.Errorf("upstream exploded"),
+		}
+	}}
+	pipeline := NewSyncPipeline(host, nil)
+	pipeline.SetImageExecutor(exec)
+
+	_, errMsg := pipeline.Execute(context.Background(), SyncImageRequest{
+		ID: "cg_sync_failure", Model: "bter3/gpt-image-2.6-sunburst", Input: []byte(`{"prompt":"a red apple"}`),
+	})
+	if errMsg == nil {
+		t.Fatal("expected an execution error")
+	}
+
+	gen, errGet := store.Get(context.Background(), aigc.GenerationGetRequest{ID: "cg_sync_failure"})
+	if errGet != nil {
+		t.Fatalf("failed to get stored gen: %v", errGet)
+	}
+	if gen.Status != aigc.StatusFailed || gen.ErrorMessage == "" {
+		t.Errorf("unexpected failure state: %+v", gen)
+	}
+
+	events := store.recordedEvents("cg_sync_failure")
+	if len(events) != 3 {
+		t.Fatalf("persisted events = %d (%v), want 3", len(events), eventTypes(events))
+	}
+	if events[1].EventType != aigc.EventProviderSubmitted || events[1].HTTPStatus != http.StatusBadGateway {
+		t.Errorf("provider event = %+v, want provider.submitted with http_status 502", events[1])
+	}
+	if events[2].EventType != aigc.EventGenerationFailed {
+		t.Errorf("terminal event = %q, want %q", events[2].EventType, aigc.EventGenerationFailed)
+	}
+}
+
+func TestSyncEventPayloadTruncatesOversizedBodies(t *testing.T) {
+	small := []byte(`{"data":[]}`)
+	if got := string(syncEventPayload(small)); got != string(small) {
+		t.Errorf("small payload rewritten: %s", got)
+	}
+	if got := syncEventPayload(nil); got != nil {
+		t.Errorf("nil payload = %s, want nil", got)
+	}
+
+	oversized := make([]byte, maxEventPayloadBytes+1)
+	for i := range oversized {
+		oversized[i] = 'x'
+	}
+	got := string(syncEventPayload(oversized))
+	if !strings.Contains(got, `"truncated":true`) || !strings.Contains(got, fmt.Sprintf(`"original_bytes":%d`, len(oversized))) {
+		t.Errorf("oversized payload = %s, want truncation marker", got)
+	}
+}
+
+func eventTypes(events []aigc.ContentGenerationEvent) []string {
+	types := make([]string, 0, len(events))
+	for _, ev := range events {
+		types = append(types, string(ev.EventType))
+	}
+	return types
+}

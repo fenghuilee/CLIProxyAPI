@@ -344,12 +344,36 @@ func (c *Coordinator) AsyncSubmit(id string) {
 		CreatedAt:        time.Now(),
 	}
 
+	// A submit that already reached a terminal state records its terminal event in
+	// the same patch, so the audit log cannot miss a completion that observers saw.
+	events := []aigc.ContentGenerationEvent{submitEvent}
+	switch status {
+	case aigc.StatusSucceeded:
+		events = append(events, aigc.ContentGenerationEvent{
+			GenerationID: gen.ID,
+			Revision:     gen.Revision,
+			EventType:    aigc.EventGenerationSucceeded,
+			Stage:        stage,
+			Status:       status,
+			CreatedAt:    time.Now(),
+		})
+	case aigc.StatusFailed:
+		events = append(events, aigc.ContentGenerationEvent{
+			GenerationID: gen.ID,
+			Revision:     gen.Revision,
+			EventType:    aigc.EventGenerationFailed,
+			Stage:        stage,
+			Status:       status,
+			CreatedAt:    time.Now(),
+		})
+	}
+
 	patchGen, errPatch := store.Patch(ctx, aigc.GenerationPatchRequest{
 		ID:               gen.ID,
 		ExpectedRevision: gen.Revision,
 		Set:              patchSet,
 		Artifacts:        artifactsToPersist,
-		Events:           []aigc.ContentGenerationEvent{submitEvent},
+		Events:           events,
 	})
 	if errPatch != nil {
 		log.Warnf("aigc: failed to patch submit result for %s: %v", gen.ID, errPatch)
@@ -357,30 +381,16 @@ func (c *Coordinator) AsyncSubmit(id string) {
 	}
 	gen = patchGen
 
-	c.pluginHost.EmitContentGenerationEvent(ctx, submitEvent)
+	for _, event := range events {
+		c.pluginHost.EmitContentGenerationEvent(ctx, event)
+	}
 
 	if gen.Status == aigc.StatusSucceeded {
-		c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
-			GenerationID: gen.ID,
-			Revision:     gen.Revision,
-			EventType:    aigc.EventGenerationSucceeded,
-			Stage:        gen.Stage,
-			Status:       gen.Status,
-			CreatedAt:    time.Now(),
-		})
 		_, _ = c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
 			Phase:      aigc.PhaseOnSucceeded,
 			Generation: gen,
 		})
 	} else if gen.Status == aigc.StatusFailed {
-		c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
-			GenerationID: gen.ID,
-			Revision:     gen.Revision,
-			EventType:    aigc.EventGenerationFailed,
-			Stage:        gen.Stage,
-			Status:       gen.Status,
-			CreatedAt:    time.Now(),
-		})
 		_, _ = c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
 			Phase:      aigc.PhaseOnFailed,
 			Generation: gen,
@@ -680,6 +690,12 @@ func (c *Coordinator) applyGenerationResult(ctx context.Context, store aigc.Cont
 		}
 	}
 
+	// Terminal events are persisted in the same patch as the state change so the audit
+	// log matches what observers receive.
+	if terminal := terminalEventForPatch(gen, patchSet); terminal != nil {
+		events = append(events, *terminal)
+	}
+
 	patchGen, errPatch := store.Patch(ctx, aigc.GenerationPatchRequest{
 		ID:               gen.ID,
 		ExpectedRevision: gen.Revision,
@@ -712,27 +728,11 @@ func (c *Coordinator) applyGenerationResult(ctx context.Context, store aigc.Cont
 	}
 
 	if gen.Status == aigc.StatusSucceeded {
-		c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
-			GenerationID: gen.ID,
-			Revision:     gen.Revision,
-			EventType:    aigc.EventGenerationSucceeded,
-			Stage:        gen.Stage,
-			Status:       gen.Status,
-			CreatedAt:    time.Now(),
-		})
 		_, _ = c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
 			Phase:      aigc.PhaseOnSucceeded,
 			Generation: gen,
 		})
 	} else if gen.Status == aigc.StatusFailed {
-		c.pluginHost.EmitContentGenerationEvent(ctx, aigc.ContentGenerationEvent{
-			GenerationID: gen.ID,
-			Revision:     gen.Revision,
-			EventType:    aigc.EventGenerationFailed,
-			Stage:        gen.Stage,
-			Status:       gen.Status,
-			CreatedAt:    time.Now(),
-		})
 		_, _ = c.pluginHost.MutateContentGeneration(ctx, aigc.GenerationMutationRequest{
 			Phase:      aigc.PhaseOnFailed,
 			Generation: gen,
@@ -740,6 +740,37 @@ func (c *Coordinator) applyGenerationResult(ctx context.Context, store aigc.Cont
 	}
 
 	return gen, nil
+}
+
+// terminalEventForPatch returns the lifecycle event describing a generation that the
+// pending patch moves into a terminal state, or nil when the patch is not terminal.
+func terminalEventForPatch(gen aigc.ContentGeneration, patchSet map[string]any) *aigc.ContentGenerationEvent {
+	status, _ := patchSet["status"].(aigc.GenerationStatus)
+	stage, _ := patchSet["stage"].(aigc.GenerationStage)
+	if stage == "" {
+		stage = gen.Stage
+	}
+
+	var eventType aigc.EventType
+	switch status {
+	case aigc.StatusSucceeded:
+		eventType = aigc.EventGenerationSucceeded
+	case aigc.StatusFailed:
+		eventType = aigc.EventGenerationFailed
+	default:
+		return nil
+	}
+	if status == gen.Status {
+		return nil
+	}
+	return &aigc.ContentGenerationEvent{
+		GenerationID: gen.ID,
+		Revision:     gen.Revision,
+		EventType:    eventType,
+		Stage:        stage,
+		Status:       status,
+		CreatedAt:    time.Now(),
+	}
 }
 
 // CancelGeneration cancels an active content generation task.

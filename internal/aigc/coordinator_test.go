@@ -18,10 +18,21 @@ import (
 type inMemoryStore struct {
 	mu          sync.Mutex
 	generations map[string]aigc.ContentGeneration
+	events      map[string][]aigc.ContentGenerationEvent
 }
 
 func newInMemoryStore() *inMemoryStore {
-	return &inMemoryStore{generations: make(map[string]aigc.ContentGeneration)}
+	return &inMemoryStore{
+		generations: make(map[string]aigc.ContentGeneration),
+		events:      make(map[string][]aigc.ContentGenerationEvent),
+	}
+}
+
+// recordedEvents returns the events persisted for a generation.
+func (s *inMemoryStore) recordedEvents(genID string) []aigc.ContentGenerationEvent {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]aigc.ContentGenerationEvent(nil), s.events[genID]...)
 }
 
 func (s *inMemoryStore) Create(ctx context.Context, req aigc.GenerationCreateRequest) (aigc.ContentGeneration, error) {
@@ -88,6 +99,14 @@ func (s *inMemoryStore) Patch(ctx context.Context, req aigc.GenerationPatchReque
 			gen.OutputTokens = v.(int64)
 		case "total_tokens":
 			gen.TotalTokens = v.(int64)
+		case "completed_at":
+			if ts, ok := v.(time.Time); ok {
+				gen.CompletedAt = &ts
+			}
+		case "duration_ms":
+			if ms, ok := v.(int64); ok {
+				gen.DurationMs = ms
+			}
 		case "output":
 			if raw, ok := v.(json.RawMessage); ok {
 				gen.Output = raw
@@ -102,6 +121,14 @@ func (s *inMemoryStore) Patch(ctx context.Context, req aigc.GenerationPatchReque
 	}
 	if len(req.Artifacts) > 0 {
 		gen.Artifacts = append(gen.Artifacts, req.Artifacts...)
+	}
+	if len(req.Events) > 0 {
+		for _, ev := range req.Events {
+			if ev.Revision == 0 {
+				ev.Revision = gen.Revision
+			}
+			s.events[gen.ID] = append(s.events[gen.ID], ev)
+		}
 	}
 	gen.Revision++
 	gen.UpdatedAt = time.Now()
@@ -509,6 +536,25 @@ func TestCoordinator_SubmitDirectSucceeded(t *testing.T) {
 	}
 	if len(finalGen.Artifacts) != 1 || finalGen.Artifacts[0].URI != "https://example.com/sync.png" {
 		t.Errorf("unexpected artifacts: %#v", finalGen.Artifacts)
+	}
+
+	// The async path must persist its terminal event, not only broadcast it.
+	events := store.recordedEvents(created.ID)
+	if len(events) == 0 {
+		t.Fatal("expected async submit to persist lifecycle events")
+	}
+	last := events[len(events)-1]
+	if last.EventType != aigc.EventGenerationSucceeded {
+		t.Errorf("last persisted event = %q (%v), want %q", last.EventType, eventTypes(events), aigc.EventGenerationSucceeded)
+	}
+	var sawSubmitted bool
+	for _, ev := range events {
+		if ev.EventType == aigc.EventProviderSubmitted {
+			sawSubmitted = true
+		}
+	}
+	if !sawSubmitted {
+		t.Errorf("persisted events = %v, want a %q event", eventTypes(events), aigc.EventProviderSubmitted)
 	}
 }
 
