@@ -754,7 +754,7 @@ func (s *AdminService) ListAIGCTasks(ctx context.Context, filter AIGCTaskFilter)
 		limit = 20
 	}
 
-	err := tx.Select("cg.generation_id, cg.request_id, cg.user_id, cg.kind, cg.model, cg.prompt, cg.input_tokens, cg.output_tokens, cg.reasoning_tokens, cg.cached_tokens, cg.total_tokens, cg.status, cg.stage, cg.progress, cg.revision, cg.api_key, cg.client_ip, cg.input, cg.output, cg.provider, cg.provider_task_id, cg.error_code, cg.error_message, cg.billing_type, cg.billing_status, cg.cost, cg.duration_ms, cg.created_at, cg.updated_at, cg.completed_at, COALESCE(u.username, '') as username").
+	err := tx.Select("cg.generation_id, cg.request_id, cg.user_id, cg.kind, cg.model, cg.prompt, cg.input_tokens, cg.output_tokens, cg.total_tokens, cg.status, cg.stage, cg.progress, cg.revision, cg.api_key, cg.client_ip, cg.input, cg.output, cg.provider, cg.provider_task_id, cg.error_code, cg.error_message, cg.billing_type, cg.billing_status, cg.cost, cg.duration_ms, cg.created_at, cg.updated_at, cg.completed_at, COALESCE(u.username, '') as username").
 		Order("cg.created_at DESC").
 		Offset(filter.Offset).
 		Limit(limit).

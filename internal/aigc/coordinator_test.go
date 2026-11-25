@@ -86,10 +86,6 @@ func (s *inMemoryStore) Patch(ctx context.Context, req aigc.GenerationPatchReque
 			gen.InputTokens = v.(int64)
 		case "output_tokens":
 			gen.OutputTokens = v.(int64)
-		case "cached_tokens":
-			gen.CachedTokens = v.(int64)
-		case "reasoning_tokens":
-			gen.ReasoningTokens = v.(int64)
 		case "total_tokens":
 			gen.TotalTokens = v.(int64)
 		case "output":

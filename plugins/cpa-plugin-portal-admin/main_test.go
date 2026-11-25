@@ -429,6 +429,12 @@ func TestContentGenerationDTO_Serialization(t *testing.T) {
 		t.Fatalf("failed to unmarshal JSON: %v", err)
 	}
 
+	for _, field := range []string{"cached_tokens", "reasoning_tokens"} {
+		if _, exists := parsed[field]; exists {
+			t.Errorf("unexpected AIGC task field %q", field)
+		}
+	}
+
 	inputMap, ok := parsed["input"].(map[string]any)
 	if !ok || inputMap["prompt"] != "sunset on the beach" || inputMap["ratio"] != "16:9" {
 		t.Fatalf("input was not serialized as native JSON object: %#v", parsed["input"])

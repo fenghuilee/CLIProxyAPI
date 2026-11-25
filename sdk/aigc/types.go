@@ -16,21 +16,19 @@ const (
 
 // ContentGeneration represents a durable asynchronous generation task snapshot.
 type ContentGeneration struct {
-	ID              string           `json:"id"`
-	RequestID       string           `json:"request_id,omitempty"`
-	UserID          uint64           `json:"user_id,omitempty"`
-	Kind            ContentKind      `json:"kind"`
-	Model           string           `json:"model"`
-	Prompt          string           `json:"prompt,omitempty"`
-	InputTokens     int64            `json:"input_tokens"`
-	OutputTokens    int64            `json:"output_tokens"`
-	CachedTokens    int64            `json:"cached_tokens"`
-	ReasoningTokens int64            `json:"reasoning_tokens"`
-	TotalTokens     int64            `json:"total_tokens"`
-	Status          GenerationStatus `json:"status"`
-	Stage           GenerationStage  `json:"stage"`
-	Progress        int              `json:"progress"`
-	Revision        uint64           `json:"revision"`
+	ID           string           `json:"id"`
+	RequestID    string           `json:"request_id,omitempty"`
+	UserID       uint64           `json:"user_id,omitempty"`
+	Kind         ContentKind      `json:"kind"`
+	Model        string           `json:"model"`
+	Prompt       string           `json:"prompt,omitempty"`
+	InputTokens  int64            `json:"input_tokens"`
+	OutputTokens int64            `json:"output_tokens"`
+	TotalTokens  int64            `json:"total_tokens"`
+	Status       GenerationStatus `json:"status"`
+	Stage        GenerationStage  `json:"stage"`
+	Progress     int              `json:"progress"`
+	Revision     uint64           `json:"revision"`
 
 	APIKey   string `json:"api_key,omitempty"`
 	ClientIP string `json:"client_ip,omitempty"`

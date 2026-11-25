@@ -4559,7 +4559,7 @@
                     ` : ''}
                   </div>
                 </td>
-                <td style="text-align: right; white-space: nowrap;" class="tabular-nums font-mono" title="输入: ${t.input_tokens || 0} / 输出: ${t.output_tokens || 0} / 缓存: ${t.cached_tokens || 0} / 思考: ${t.reasoning_tokens || 0} / 总计: ${t.total_tokens || 0}">
+                <td style="text-align: right; white-space: nowrap;" class="tabular-nums font-mono" title="输入: ${t.input_tokens || 0} / 输出: ${t.output_tokens || 0} / 总计: ${t.total_tokens || 0}">
                   ${t.total_tokens > 0 ? `<span style="font-weight: 600; color: var(--accent);">${Number(t.total_tokens).toLocaleString()}</span>` : '<span style="color:var(--text-3);">-</span>'}
                 </td>
                 <td class="tabular-nums font-mono" style="color:var(--accent); font-weight:500; white-space: nowrap;">${t.cost ? '¥' + t.cost : '-'}</td>
@@ -4860,8 +4860,6 @@
             const totalTok = (task.total_tokens > 0) ? task.total_tokens : (u.total_tokens || 0);
             const inTok = (task.input_tokens > 0) ? task.input_tokens : (u.input_tokens || 0);
             const outTok = (task.output_tokens > 0) ? task.output_tokens : (u.output_tokens || 0);
-            const cachedTok = (task.cached_tokens > 0) ? task.cached_tokens : (u.cached_tokens || u.cache_read_tokens || 0);
-            const reasoningTok = (task.reasoning_tokens > 0) ? task.reasoning_tokens : (u.reasoning_tokens || 0);
             return `
             <div class="detail-card">
               <div class="detail-card-header">
@@ -4890,9 +4888,9 @@
                   </span>
                 </div>
                 <div class="meta-item">
-                  <span class="meta-item-label">输入 / 输出 / 缓存 / 思考</span>
+                  <span class="meta-item-label">输入 / 输出</span>
                   <span class="meta-item-value font-mono tabular-nums text-muted" style="font-size: 11px;">
-                    ${inTok} / ${outTok} / ${cachedTok} / ${reasoningTok}
+                    ${inTok} / ${outTok}
                   </span>
                 </div>
                 <div class="meta-item">

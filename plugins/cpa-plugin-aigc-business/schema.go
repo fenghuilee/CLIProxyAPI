@@ -17,8 +17,6 @@ CREATE TABLE IF NOT EXISTS ` + "`content_generations`" + ` (
     ` + "`prompt`" + ` TEXT NULL COMMENT '提示词纯文本快照',
     ` + "`input_tokens`" + ` BIGINT NOT NULL DEFAULT 0,
     ` + "`output_tokens`" + ` BIGINT NOT NULL DEFAULT 0,
-    ` + "`reasoning_tokens`" + ` BIGINT NOT NULL DEFAULT 0,
-    ` + "`cached_tokens`" + ` BIGINT NOT NULL DEFAULT 0,
     ` + "`total_tokens`" + ` BIGINT NOT NULL DEFAULT 0,
     ` + "`status`" + ` VARCHAR(32) NOT NULL,
     ` + "`stage`" + ` VARCHAR(32) NOT NULL,

@@ -364,40 +364,38 @@ func (UsageStatisticDaily) TableName() string { return "usage_statistics_daily" 
 
 // ContentGeneration represents an AIGC task.
 type ContentGeneration struct {
-	GenerationID    string                      `gorm:"primaryKey;column:generation_id;size:64" json:"generation_id"`
-	RequestID       string                      `gorm:"column:request_id;size:64;index" json:"request_id,omitempty"`
-	UserID          uint64                      `gorm:"column:user_id;not null;default:0;index" json:"user_id"`
-	Kind            string                      `gorm:"size:32;not null" json:"kind"`
-	Model           string                      `gorm:"size:128;not null" json:"model"`
-	Prompt          string                      `gorm:"type:text" json:"prompt,omitempty"`
-	InputTokens     int64                       `gorm:"column:input_tokens;default:0" json:"input_tokens"`
-	OutputTokens    int64                       `gorm:"column:output_tokens;default:0" json:"output_tokens"`
-	CachedTokens    int64                       `gorm:"-" json:"cached_tokens"`
-	ReasoningTokens int64                       `gorm:"-" json:"reasoning_tokens"`
-	TotalTokens     int64                       `gorm:"column:total_tokens;default:0" json:"total_tokens"`
-	Status          string                      `gorm:"size:32;not null" json:"status"`
-	Stage           string                      `gorm:"size:32;not null" json:"stage"`
-	Progress        int                         `gorm:"not null;default:0" json:"progress"`
-	Revision        uint64                      `gorm:"not null;default:1" json:"revision"`
-	APIKey          string                      `gorm:"size:255" json:"api_key,omitempty"`
-	Username        string                      `gorm:"->" json:"username,omitempty"`
-	ClientIP        string                      `gorm:"size:64" json:"client_ip,omitempty"`
-	Input           string                      `gorm:"type:longtext" json:"input,omitempty"`
-	Output          string                      `gorm:"type:longtext" json:"output,omitempty"`
-	Provider        string                      `gorm:"size:64" json:"provider,omitempty"`
-	ProviderTaskID  string                      `gorm:"size:255" json:"provider_task_id,omitempty"`
-	ErrorCode       string                      `gorm:"size:64" json:"error_code,omitempty"`
-	ErrorMessage    string                      `gorm:"type:text" json:"error_message,omitempty"`
-	BillingType     string                      `gorm:"size:32;not null;default:'fixed'" json:"billing_type"`
-	BillingStatus   string                      `gorm:"size:32;not null;default:'unbilled';index" json:"billing_status"`
-	Cost            decimal.Decimal             `gorm:"type:decimal(18,8);not null;default:0" json:"cost"`
-	DurationMs      int64                       `gorm:"column:duration_ms" json:"duration_ms,omitempty"`
-	CreatedAt       time.Time                   `gorm:"not null" json:"created_at"`
-	UpdatedAt       time.Time                   `gorm:"not null" json:"updated_at"`
-	CompletedAt     *time.Time                  `gorm:"column:completed_at" json:"completed_at,omitempty"`
-	Artifacts       []ContentGenerationArtifact `gorm:"foreignKey:GenerationID;references:GenerationID" json:"artifacts,omitempty"`
-	Events          []ContentGenerationEvent    `gorm:"foreignKey:GenerationID;references:GenerationID" json:"events,omitempty"`
-	Usage           *UsageStatistic             `gorm:"-" json:"usage,omitempty"`
+	GenerationID   string                      `gorm:"primaryKey;column:generation_id;size:64" json:"generation_id"`
+	RequestID      string                      `gorm:"column:request_id;size:64;index" json:"request_id,omitempty"`
+	UserID         uint64                      `gorm:"column:user_id;not null;default:0;index" json:"user_id"`
+	Kind           string                      `gorm:"size:32;not null" json:"kind"`
+	Model          string                      `gorm:"size:128;not null" json:"model"`
+	Prompt         string                      `gorm:"type:text" json:"prompt,omitempty"`
+	InputTokens    int64                       `gorm:"column:input_tokens;default:0" json:"input_tokens"`
+	OutputTokens   int64                       `gorm:"column:output_tokens;default:0" json:"output_tokens"`
+	TotalTokens    int64                       `gorm:"column:total_tokens;default:0" json:"total_tokens"`
+	Status         string                      `gorm:"size:32;not null" json:"status"`
+	Stage          string                      `gorm:"size:32;not null" json:"stage"`
+	Progress       int                         `gorm:"not null;default:0" json:"progress"`
+	Revision       uint64                      `gorm:"not null;default:1" json:"revision"`
+	APIKey         string                      `gorm:"size:255" json:"api_key,omitempty"`
+	Username       string                      `gorm:"->" json:"username,omitempty"`
+	ClientIP       string                      `gorm:"size:64" json:"client_ip,omitempty"`
+	Input          string                      `gorm:"type:longtext" json:"input,omitempty"`
+	Output         string                      `gorm:"type:longtext" json:"output,omitempty"`
+	Provider       string                      `gorm:"size:64" json:"provider,omitempty"`
+	ProviderTaskID string                      `gorm:"size:255" json:"provider_task_id,omitempty"`
+	ErrorCode      string                      `gorm:"size:64" json:"error_code,omitempty"`
+	ErrorMessage   string                      `gorm:"type:text" json:"error_message,omitempty"`
+	BillingType    string                      `gorm:"size:32;not null;default:'fixed'" json:"billing_type"`
+	BillingStatus  string                      `gorm:"size:32;not null;default:'unbilled';index" json:"billing_status"`
+	Cost           decimal.Decimal             `gorm:"type:decimal(18,8);not null;default:0" json:"cost"`
+	DurationMs     int64                       `gorm:"column:duration_ms" json:"duration_ms,omitempty"`
+	CreatedAt      time.Time                   `gorm:"not null" json:"created_at"`
+	UpdatedAt      time.Time                   `gorm:"not null" json:"updated_at"`
+	CompletedAt    *time.Time                  `gorm:"column:completed_at" json:"completed_at,omitempty"`
+	Artifacts      []ContentGenerationArtifact `gorm:"foreignKey:GenerationID;references:GenerationID" json:"artifacts,omitempty"`
+	Events         []ContentGenerationEvent    `gorm:"foreignKey:GenerationID;references:GenerationID" json:"events,omitempty"`
+	Usage          *UsageStatistic             `gorm:"-" json:"usage,omitempty"`
 }
 
 func (ContentGeneration) TableName() string { return "content_generations" }
@@ -417,78 +415,74 @@ func ParseJSONOrRaw(raw string) any {
 
 // ContentGenerationDTO represents the API view of an AIGC task with native objects for JSON fields.
 type ContentGenerationDTO struct {
-	GenerationID    string                      `json:"generation_id"`
-	RequestID       string                      `json:"request_id,omitempty"`
-	UserID          uint64                      `json:"user_id"`
-	Kind            string                      `json:"kind"`
-	Model           string                      `json:"model"`
-	Prompt          string                      `json:"prompt,omitempty"`
-	InputTokens     int64                       `json:"input_tokens"`
-	OutputTokens    int64                       `json:"output_tokens"`
-	CachedTokens    int64                       `json:"cached_tokens"`
-	ReasoningTokens int64                       `json:"reasoning_tokens"`
-	TotalTokens     int64                       `json:"total_tokens"`
-	Status          string                      `json:"status"`
-	Stage           string                      `json:"stage"`
-	Progress        int                         `json:"progress"`
-	Revision        uint64                      `json:"revision"`
-	APIKey          string                      `json:"api_key,omitempty"`
-	Username        string                      `json:"username,omitempty"`
-	ClientIP        string                      `json:"client_ip,omitempty"`
-	Input           any                         `json:"input,omitempty"`
-	Output          any                         `json:"output,omitempty"`
-	Provider        string                      `json:"provider,omitempty"`
-	ProviderTaskID  string                      `json:"provider_task_id,omitempty"`
-	ErrorCode       string                      `json:"error_code,omitempty"`
-	ErrorMessage    string                      `json:"error_message,omitempty"`
-	BillingType     string                      `json:"billing_type"`
-	BillingStatus   string                      `json:"billing_status"`
-	Cost            decimal.Decimal             `json:"cost"`
-	DurationMs      int64                       `json:"duration_ms,omitempty"`
-	CreatedAt       time.Time                   `json:"created_at"`
-	UpdatedAt       time.Time                   `json:"updated_at"`
-	CompletedAt     *time.Time                  `json:"completed_at,omitempty"`
-	Artifacts       []ContentGenerationArtifact `json:"artifacts,omitempty"`
-	Events          []ContentGenerationEvent    `json:"events,omitempty"`
-	Usage           *UsageStatistic             `json:"usage,omitempty"`
+	GenerationID   string                      `json:"generation_id"`
+	RequestID      string                      `json:"request_id,omitempty"`
+	UserID         uint64                      `json:"user_id"`
+	Kind           string                      `json:"kind"`
+	Model          string                      `json:"model"`
+	Prompt         string                      `json:"prompt,omitempty"`
+	InputTokens    int64                       `json:"input_tokens"`
+	OutputTokens   int64                       `json:"output_tokens"`
+	TotalTokens    int64                       `json:"total_tokens"`
+	Status         string                      `json:"status"`
+	Stage          string                      `json:"stage"`
+	Progress       int                         `json:"progress"`
+	Revision       uint64                      `json:"revision"`
+	APIKey         string                      `json:"api_key,omitempty"`
+	Username       string                      `json:"username,omitempty"`
+	ClientIP       string                      `json:"client_ip,omitempty"`
+	Input          any                         `json:"input,omitempty"`
+	Output         any                         `json:"output,omitempty"`
+	Provider       string                      `json:"provider,omitempty"`
+	ProviderTaskID string                      `json:"provider_task_id,omitempty"`
+	ErrorCode      string                      `json:"error_code,omitempty"`
+	ErrorMessage   string                      `json:"error_message,omitempty"`
+	BillingType    string                      `json:"billing_type"`
+	BillingStatus  string                      `json:"billing_status"`
+	Cost           decimal.Decimal             `json:"cost"`
+	DurationMs     int64                       `json:"duration_ms,omitempty"`
+	CreatedAt      time.Time                   `json:"created_at"`
+	UpdatedAt      time.Time                   `json:"updated_at"`
+	CompletedAt    *time.Time                  `json:"completed_at,omitempty"`
+	Artifacts      []ContentGenerationArtifact `json:"artifacts,omitempty"`
+	Events         []ContentGenerationEvent    `json:"events,omitempty"`
+	Usage          *UsageStatistic             `json:"usage,omitempty"`
 }
 
 func (c ContentGeneration) ToDTO() ContentGenerationDTO {
 	return ContentGenerationDTO{
-		GenerationID:    c.GenerationID,
-		RequestID:       c.RequestID,
-		UserID:          c.UserID,
-		Kind:            c.Kind,
-		Model:           c.Model,
-		Prompt:          c.Prompt,
-		InputTokens:     c.InputTokens,
-		OutputTokens:    c.OutputTokens,
-		CachedTokens:    c.CachedTokens,
-		ReasoningTokens: c.ReasoningTokens,
-		TotalTokens:     c.TotalTokens,
-		Status:          c.Status,
-		Stage:           c.Stage,
-		Progress:        c.Progress,
-		Revision:        c.Revision,
-		APIKey:          c.APIKey,
-		Username:        c.Username,
-		ClientIP:        c.ClientIP,
-		Input:           ParseJSONOrRaw(c.Input),
-		Output:          ParseJSONOrRaw(c.Output),
-		Provider:        c.Provider,
-		ProviderTaskID:  c.ProviderTaskID,
-		ErrorCode:       c.ErrorCode,
-		ErrorMessage:    c.ErrorMessage,
-		BillingType:     c.BillingType,
-		BillingStatus:   c.BillingStatus,
-		Cost:            c.Cost,
-		DurationMs:      c.DurationMs,
-		CreatedAt:       c.CreatedAt,
-		UpdatedAt:       c.UpdatedAt,
-		CompletedAt:     c.CompletedAt,
-		Artifacts:       c.Artifacts,
-		Events:          c.Events,
-		Usage:           c.Usage,
+		GenerationID:   c.GenerationID,
+		RequestID:      c.RequestID,
+		UserID:         c.UserID,
+		Kind:           c.Kind,
+		Model:          c.Model,
+		Prompt:         c.Prompt,
+		InputTokens:    c.InputTokens,
+		OutputTokens:   c.OutputTokens,
+		TotalTokens:    c.TotalTokens,
+		Status:         c.Status,
+		Stage:          c.Stage,
+		Progress:       c.Progress,
+		Revision:       c.Revision,
+		APIKey:         c.APIKey,
+		Username:       c.Username,
+		ClientIP:       c.ClientIP,
+		Input:          ParseJSONOrRaw(c.Input),
+		Output:         ParseJSONOrRaw(c.Output),
+		Provider:       c.Provider,
+		ProviderTaskID: c.ProviderTaskID,
+		ErrorCode:      c.ErrorCode,
+		ErrorMessage:   c.ErrorMessage,
+		BillingType:    c.BillingType,
+		BillingStatus:  c.BillingStatus,
+		Cost:           c.Cost,
+		DurationMs:     c.DurationMs,
+		CreatedAt:      c.CreatedAt,
+		UpdatedAt:      c.UpdatedAt,
+		CompletedAt:    c.CompletedAt,
+		Artifacts:      c.Artifacts,
+		Events:         c.Events,
+		Usage:          c.Usage,
 	}
 }
 
