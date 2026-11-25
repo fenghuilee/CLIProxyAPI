@@ -9,7 +9,7 @@ import (
 )
 
 func TestUsageCacheTokenColumns(t *testing.T) {
-	for _, model := range []interface{ TableName() string }{UsageStatistic{}, UsageStatisticDaily{}, UsageStatisticHourly{}} {
+	for _, model := range []interface{ TableName() string }{UsageStatistic{}} {
 		t.Run(model.TableName(), func(t *testing.T) {
 			mapped, err := schema.Parse(model, &sync.Map{}, schema.NamingStrategy{})
 			if err != nil {
@@ -35,8 +35,7 @@ func TestUsageCacheTokenJSON(t *testing.T) {
 	}{
 		{"detail", (UsageStatistic{CacheReadTokens: 17, CacheCreationTokens: 29}).ToDTO(), 17},
 		{"creation only", (UsageStatistic{CacheCreationTokens: 29}).ToDTO(), 0},
-		{"daily", UsageStatisticDaily{CacheReadTokens: 17, CacheCreationTokens: 29}, 17},
-		{"hourly", UsageStatisticHourly{CacheReadTokens: 17, CacheCreationTokens: 29}, 17},
+		{"daily aggregate", UsageDailyStat{CacheReadTokens: 17, CacheCreationTokens: 29}, 17},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			payload, err := json.Marshal(tc.data)
@@ -59,7 +58,7 @@ func TestUsageCacheTokenJSON(t *testing.T) {
 					t.Fatalf("legacy alias must equal cache read tokens: %s", payload)
 				}
 			} else if fields.Legacy != nil {
-				t.Fatalf("unexpected legacy alias in rollup: %s", payload)
+				t.Fatalf("unexpected legacy alias in aggregate: %s", payload)
 			}
 		})
 	}

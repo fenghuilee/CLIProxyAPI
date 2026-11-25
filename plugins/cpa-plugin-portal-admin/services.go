@@ -129,8 +129,8 @@ func (s *AdminService) GetDashboardSummary(ctx context.Context) (DashboardSummar
 		Cost     decimal.Decimal
 	}
 	var modelAggs []modelAgg
-	_ = s.db.WithContext(ctx).Table("usage_statistics_daily").
-		Select("model, COALESCE(SUM(request_count), 0) as req_count, COALESCE(SUM(total_tokens), 0) as tokens, COALESCE(SUM(total_cost), 0) as cost").
+	_ = s.db.WithContext(ctx).Table("usage_statistics").
+		Select("model, COUNT(*) as req_count, COALESCE(SUM(total_tokens), 0) as tokens, COALESCE(SUM(cost), 0) as cost").
 		Group("model").
 		Order("req_count DESC").
 		Limit(5).
@@ -151,10 +151,10 @@ func (s *AdminService) GetDashboardSummary(ctx context.Context) (DashboardSummar
 		Tokens   int64
 	}
 	var trendRows []trendRow
-	sinceDate := time.Now().Add(-14 * 24 * time.Hour).Format("2006-01-02")
-	_ = s.db.WithContext(ctx).Table("usage_statistics_daily").
-		Select("stat_date, COALESCE(SUM(request_count), 0) as reqs, COALESCE(SUM(total_tokens), 0) as tokens").
-		Where("stat_date >= ?", sinceDate).
+	sinceDate := time.Now().Add(-14 * 24 * time.Hour)
+	_ = s.db.WithContext(ctx).Table("usage_statistics").
+		Select("DATE_FORMAT(created_at, '%Y-%m-%d') as stat_date, COUNT(*) as reqs, COALESCE(SUM(total_tokens), 0) as tokens").
+		Where("created_at >= ?", sinceDate).
 		Group("stat_date").
 		Order("stat_date ASC").
 		Scan(&trendRows).Error
@@ -241,8 +241,8 @@ func (s *AdminService) ListAvailableModels(ctx context.Context) ([]AvailableMode
 	}
 	if len(items) == 0 {
 		var models []string
-		if s.db.Migrator().HasTable("usage_statistics_hourly") {
-			_ = s.db.WithContext(ctx).Table("usage_statistics_hourly").Distinct("model").Pluck("model", &models).Error
+		if s.db.Migrator().HasTable("usage_statistics") {
+			_ = s.db.WithContext(ctx).Table("usage_statistics").Distinct("model").Pluck("model", &models).Error
 		}
 		seen := make(map[string]bool)
 		for _, m := range models {
@@ -679,13 +679,24 @@ func (s *AdminService) ListUsageLogs(ctx context.Context, filter UsageLogFilter)
 	return logs, total, err
 }
 
-func (s *AdminService) GetUsageStats(ctx context.Context, days int) ([]UsageStatisticDaily, error) {
+func (s *AdminService) GetUsageStats(ctx context.Context, days int) ([]UsageDailyStat, error) {
 	if days <= 0 {
 		days = 30
 	}
-	sinceDate := time.Now().Add(-time.Duration(days) * 24 * time.Hour).Format("2006-01-02")
-	var stats []UsageStatisticDaily
-	err := s.db.WithContext(ctx).Where("stat_date >= ?", sinceDate).Order("stat_date ASC").Find(&stats).Error
+	sinceDate := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
+	var stats []UsageDailyStat
+	err := s.db.WithContext(ctx).Table("usage_statistics").
+		Select("DATE_FORMAT(created_at, '%Y-%m-%d') as stat_date, COUNT(*) as request_count, "+
+			"SUM(CASE WHEN failed = 0 THEN 1 ELSE 0 END) as success_count, "+
+			"SUM(CASE WHEN failed = 1 THEN 1 ELSE 0 END) as failed_count, "+
+			"COALESCE(SUM(input_tokens), 0) as input_tokens, COALESCE(SUM(output_tokens), 0) as output_tokens, "+
+			"COALESCE(SUM(reasoning_tokens), 0) as reasoning_tokens, COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens, "+
+			"COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens, COALESCE(SUM(total_tokens), 0) as total_tokens, "+
+			"COALESCE(SUM(cost), 0) as total_cost").
+		Where("created_at >= ?", sinceDate).
+		Group("stat_date").
+		Order("stat_date ASC").
+		Scan(&stats).Error
 	return stats, err
 }
 

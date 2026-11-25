@@ -265,6 +265,21 @@ type UsageStatistic struct {
 
 func (UsageStatistic) TableName() string { return "usage_statistics" }
 
+// UsageDailyStat is the per-day aggregate of usage_statistics detail rows.
+type UsageDailyStat struct {
+	StatDate            string          `json:"stat_date"`
+	RequestCount        int64           `json:"request_count"`
+	SuccessCount        int64           `json:"success_count"`
+	FailedCount         int64           `json:"failed_count"`
+	InputTokens         int64           `json:"input_tokens"`
+	OutputTokens        int64           `json:"output_tokens"`
+	ReasoningTokens     int64           `json:"reasoning_tokens"`
+	CacheReadTokens     int64           `json:"cache_read_tokens"`
+	CacheCreationTokens int64           `json:"cache_creation_tokens"`
+	TotalTokens         int64           `json:"total_tokens"`
+	TotalCost           decimal.Decimal `json:"total_cost"`
+}
+
 // UsageStatisticDTO represents the API view of a usage log with failure_body parsed if valid JSON.
 type UsageStatisticDTO struct {
 	ID                  uint64          `json:"id"`
@@ -323,47 +338,6 @@ func (u UsageStatistic) ToDTO() UsageStatisticDTO {
 		KeyName:             u.KeyName,
 	}
 }
-
-// UsageStatisticHourly represents aggregated usage by hour.
-type UsageStatisticHourly struct {
-	ID                  uint64          `gorm:"primaryKey;autoIncrement" json:"id"`
-	StatHour            time.Time       `gorm:"not null;index" json:"stat_hour"`
-	UserID              uint64          `gorm:"index;not null" json:"user_id"`
-	APIKeyID            uint64          `gorm:"index;not null" json:"api_key_id"`
-	Model               string          `gorm:"size:128;not null" json:"model"`
-	RequestCount        int             `gorm:"not null;default:0" json:"request_count"`
-	SuccessCount        int             `gorm:"not null;default:0" json:"success_count"`
-	FailedCount         int             `gorm:"not null;default:0" json:"failed_count"`
-	InputTokens         int64           `gorm:"not null;default:0" json:"input_tokens"`
-	OutputTokens        int64           `gorm:"not null;default:0" json:"output_tokens"`
-	CacheReadTokens     int64           `gorm:"not null;default:0" json:"cache_read_tokens"`
-	CacheCreationTokens int64           `gorm:"not null;default:0" json:"cache_creation_tokens"`
-	TotalTokens         int64           `gorm:"not null;default:0" json:"total_tokens"`
-	TotalCost           decimal.Decimal `gorm:"type:decimal(16,8);not null;default:0" json:"total_cost"`
-	AvgLatencyMs        int             `gorm:"not null;default:0" json:"avg_latency_ms"`
-}
-
-func (UsageStatisticHourly) TableName() string { return "usage_statistics_hourly" }
-
-// UsageStatisticDaily represents aggregated usage by day.
-type UsageStatisticDaily struct {
-	ID                  uint64          `gorm:"primaryKey;autoIncrement" json:"id"`
-	StatDate            string          `gorm:"size:10;not null;index" json:"stat_date"`
-	UserID              uint64          `gorm:"index;not null" json:"user_id"`
-	APIKeyID            uint64          `gorm:"index;not null" json:"api_key_id"`
-	Model               string          `gorm:"size:128;not null" json:"model"`
-	RequestCount        int             `gorm:"not null;default:0" json:"request_count"`
-	SuccessCount        int             `gorm:"not null;default:0" json:"success_count"`
-	FailedCount         int             `gorm:"not null;default:0" json:"failed_count"`
-	InputTokens         int64           `gorm:"not null;default:0" json:"input_tokens"`
-	OutputTokens        int64           `gorm:"not null;default:0" json:"output_tokens"`
-	CacheReadTokens     int64           `gorm:"not null;default:0" json:"cache_read_tokens"`
-	CacheCreationTokens int64           `gorm:"not null;default:0" json:"cache_creation_tokens"`
-	TotalTokens         int64           `gorm:"not null;default:0" json:"total_tokens"`
-	TotalCost           decimal.Decimal `gorm:"type:decimal(16,8);not null;default:0" json:"total_cost"`
-}
-
-func (UsageStatisticDaily) TableName() string { return "usage_statistics_daily" }
 
 // ContentGeneration represents an AIGC task.
 type ContentGeneration struct {
