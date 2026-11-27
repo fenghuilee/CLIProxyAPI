@@ -44,8 +44,31 @@ func TestChinaDataPayCreationDoesNotRetry(t *testing.T) {
 	if !errors.As(err, &apiErr) || apiErr.Status != 502 || calls.Load() != 1 {
 		t.Fatalf("creation retried or error lost: calls=%d error=%v", calls.Load(), err)
 	}
-	if strings.Contains(err.Error(), "private-upstream-details") {
-		t.Fatal("upstream response details leaked")
+	if !strings.Contains(err.Error(), "ServiceUnavailable") || !strings.Contains(err.Error(), "private-upstream-details") {
+		t.Fatalf("expected upstream error details propagated: %v", err)
+	}
+}
+
+func TestChinaDataPayPropagatesDetailedErrorAndRedactsSecrets(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"ResponseMetadata":{"Error":{"Code":"InvalidParameter.ImageFetchFailed","Message":"Failed fetching image using token test-token"}}}`))
+	}))
+	defer server.Close()
+	client := localChinaDataPayAdapter(t, server.URL)
+	_, err := client.CreateAsset(context.Background(), "test", "image", "https://example.com/image.png")
+	var apiErr *AssetAPIError
+	if !errors.As(err, &apiErr) || apiErr.Status != 400 {
+		t.Fatalf("expected HTTP 400 AssetAPIError: %v", err)
+	}
+	if apiErr.Code != "InvalidParameter.ImageFetchFailed" {
+		t.Fatalf("expected code InvalidParameter.ImageFetchFailed, got %s", apiErr.Code)
+	}
+	if strings.Contains(err.Error(), "test-token") {
+		t.Fatalf("token leaked in error: %v", err)
+	}
+	if !strings.Contains(err.Error(), "[REDACTED]") {
+		t.Fatalf("expected [REDACTED] in error message: %v", err)
 	}
 }
 

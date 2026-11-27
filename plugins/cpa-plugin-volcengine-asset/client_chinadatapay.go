@@ -3,11 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/MoeForge/moego/json"
 )
 
 const chinaDataPayAssetEndpoint = "https://tp-api.chinadatapay.com:8000/v1/api/assets/"
@@ -56,9 +57,6 @@ func (c *ChinaDataPayAdapter) call(ctx context.Context, action string, payload m
 		return AssetItem{}, &AssetAPIError{Status: 503, Code: "transport_failure"}
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return AssetItem{}, &AssetAPIError{Status: resp.StatusCode, Code: "http_error"}
-	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
 	if err != nil {
 		if ctx.Err() != nil {
@@ -67,7 +65,10 @@ func (c *ChinaDataPayAdapter) call(ctx context.Context, action string, payload m
 		return AssetItem{}, &AssetAPIError{Status: 503, Code: "transport_failure"}
 	}
 	if len(raw) > 1<<20 {
-		return AssetItem{}, &AssetAPIError{Status: resp.StatusCode, Code: "invalid_response"}
+		return AssetItem{}, &AssetAPIError{Status: resp.StatusCode, Code: "invalid_response", Message: "response payload exceeded 1MB limit"}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return AssetItem{}, parseUpstreamError(resp.StatusCode, raw, "http_error", c.token)
 	}
 	var envelope struct {
 		ResponseMetadata struct{ Error *json.RawMessage }
@@ -85,7 +86,7 @@ func (c *ChinaDataPayAdapter) call(ctx context.Context, action string, payload m
 		return AssetItem{}, &AssetAPIError{Status: resp.StatusCode, Code: "invalid_response"}
 	}
 	if envelope.ResponseMetadata.Error != nil || envelope.Code != 0 {
-		return AssetItem{}, &AssetAPIError{Status: resp.StatusCode, Code: "platform_error"}
+		return AssetItem{}, parseUpstreamError(resp.StatusCode, raw, "platform_error", c.token)
 	}
 	result := envelope.Result
 	if result.ID == "" && result.Status == "" {

@@ -1,13 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
+	"github.com/MoeForge/moego/json"
 	"github.com/MoeForge/moego/ojson"
 	"github.com/volcengine/volcengine-go-sdk/volcengine"
 	"github.com/volcengine/volcengine-go-sdk/volcengine/credentials"
@@ -19,8 +21,8 @@ import (
 
 // arkSDKClient shares Ark protocol code, but each adapter owns its SDK session.
 type arkSDKClient struct {
-	accessKey, region, project, groupID string
-	session                             *session.Session
+	accessKey, secretKey, region, project, groupID string
+	session                                        *session.Session
 }
 
 func newArkSDKClient(cfg ChannelConfig, region, endpoint string) (*arkSDKClient, error) {
@@ -37,7 +39,14 @@ func newArkSDKClient(cfg ChannelConfig, region, endpoint string) (*arkSDKClient,
 	if err != nil {
 		return nil, fmt.Errorf("initialize Ark SDK session")
 	}
-	return &arkSDKClient{accessKey: cfg.AccessKey, region: region, project: cfg.Project, groupID: cfg.GroupID, session: sess}, nil
+	return &arkSDKClient{
+		accessKey: cfg.AccessKey,
+		secretKey: cfg.SecretKey,
+		region:    region,
+		project:   cfg.Project,
+		groupID:   cfg.GroupID,
+		session:   sess,
+	}, nil
 }
 
 func (c *arkSDKClient) call(ctx context.Context, action string, payload map[string]any) (AssetItem, error) {
@@ -51,8 +60,17 @@ func (c *arkSDKClient) call(ctx context.Context, action string, payload map[stri
 	sess := c.session.Copy()
 	sess.Handlers.Build.PushFrontNamed(request.NamedHandler{Name: "asset.context", Fn: func(r *request.Request) { r.SetContext(ctx) }})
 	status := 0
+	var respBody []byte
+	sess.Handlers.Send.PushBackNamed(request.NamedHandler{Name: "asset.capture_body", Fn: func(r *request.Request) {
+		if r.HTTPResponse != nil && r.HTTPResponse.Body != nil {
+			status = r.HTTPResponse.StatusCode
+			data, _ := io.ReadAll(io.LimitReader(r.HTTPResponse.Body, (1<<20)+1))
+			respBody = data
+			r.HTTPResponse.Body = io.NopCloser(bytes.NewReader(data))
+		}
+	}})
 	sess.Handlers.Complete.PushBackNamed(request.NamedHandler{Name: "asset.status", Fn: func(r *request.Request) {
-		if r.HTTPResponse != nil {
+		if r.HTTPResponse != nil && r.HTTPResponse.StatusCode > 0 {
 			status = r.HTTPResponse.StatusCode
 		}
 	}})
@@ -60,8 +78,8 @@ func (c *arkSDKClient) call(ctx context.Context, action string, payload map[stri
 		ServiceName: "ark", Action: action, Version: "2024-01-01",
 		HttpMethod: universal.POST, ContentType: universal.ApplicationJSON,
 	}, &payload)
-	if status >= 300 {
-		return AssetItem{}, &AssetAPIError{Status: status, Code: "http_error"}
+	if len(respBody) > 1<<20 {
+		return AssetItem{}, &AssetAPIError{Status: status, Code: "invalid_response", Message: "response payload exceeded 1MB limit"}
 	}
 	if err != nil {
 		if ctx.Err() != nil {
@@ -69,30 +87,56 @@ func (c *arkSDKClient) call(ctx context.Context, action string, payload map[stri
 		}
 		var failure volcengineerr.RequestFailure
 		if errors.As(err, &failure) {
-			return AssetItem{}, &AssetAPIError{Status: failure.StatusCode(), Code: "upstream_error"}
+			statusCode := failure.StatusCode()
+			if statusCode == 0 && status > 0 {
+				statusCode = status
+			}
+			defaultCode := failure.Code()
+			if defaultCode == "" {
+				defaultCode = "upstream_error"
+			}
+			apiErr := parseUpstreamError(statusCode, respBody, defaultCode, c.accessKey, c.secretKey)
+			if apiErr.Message == "" && failure.Message() != "" {
+				apiErr.Message = sanitizeErrorText(failure.Message(), c.accessKey, c.secretKey)
+			}
+			return AssetItem{}, apiErr
 		}
-		if status > 0 {
-			return AssetItem{}, &AssetAPIError{Status: status, Code: "invalid_response"}
+		if status >= 300 {
+			return AssetItem{}, parseUpstreamError(status, respBody, "http_error", c.accessKey, c.secretKey)
 		}
 		var sdkErr volcengineerr.Error
-		if errors.As(err, &sdkErr) && sdkErr.Code() != "RequestError" {
-			return AssetItem{}, &AssetAPIError{Code: "invalid_response"}
+		if errors.As(err, &sdkErr) {
+			if sdkErr.Code() != "RequestError" {
+				return AssetItem{}, &AssetAPIError{
+					Status:  status,
+					Code:    "invalid_response",
+					Message: sanitizeErrorText(sdkErr.Message(), c.accessKey, c.secretKey),
+				}
+			}
+		}
+		if status > 0 {
+			return AssetItem{}, parseUpstreamError(status, respBody, "invalid_response", c.accessKey, c.secretKey)
 		}
 		return AssetItem{}, &AssetAPIError{Status: 503, Code: "transport_failure"}
 	}
+	if status >= 300 {
+		return AssetItem{}, parseUpstreamError(status, respBody, "http_error", c.accessKey, c.secretKey)
+	}
 	raw, err := json.Marshal(resp)
 	if err != nil {
-		return AssetItem{}, &AssetAPIError{Code: "invalid_response"}
+		return AssetItem{}, &AssetAPIError{Status: status, Code: "invalid_response"}
 	}
 	if ojson.GetBytes(raw, "ResponseMetadata.Error").Exists() && ojson.GetBytes(raw, "ResponseMetadata.Error").Type != ojson.Null {
-		return AssetItem{}, &AssetAPIError{Status: 200, Code: "platform_error"}
+		return AssetItem{}, parseUpstreamError(200, raw, "platform_error", c.accessKey, c.secretKey)
 	}
 	result := ojson.GetBytes(raw, "Result")
 	if !result.Exists() {
 		result = ojson.ParseBytes(raw)
 	}
-	item := AssetItem{ID: result.Get("Id").String(), Name: result.Get("Name").String(),
-		Status: result.Get("Status").String(), FileType: strings.ToLower(result.Get("AssetType").String()), ErrorMessage: result.Get("ErrorMessage").String()}
+	item := AssetItem{
+		ID: result.Get("Id").String(), Name: result.Get("Name").String(),
+		Status: result.Get("Status").String(), FileType: strings.ToLower(result.Get("AssetType").String()), ErrorMessage: result.Get("ErrorMessage").String(),
+	}
 	if action == "CreateAsset" && item.ID != "" && item.Status == "" {
 		item.Status = "Processing"
 	}
