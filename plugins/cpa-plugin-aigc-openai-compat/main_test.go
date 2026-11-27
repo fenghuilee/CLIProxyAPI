@@ -135,11 +135,15 @@ func TestDriver_Supports(t *testing.T) {
 		{aigc.ContentKindVideo, "ze/SD2.5-Flash-720p", true, "zeroapi-video-v2"},
 		{aigc.ContentKindVideo, "zeroapi/sd2.5-antiao", true, "openai-compat"},
 
+		// ZeroAPI GPT Image uses the dedicated JSON-only image adapter.
+		{aigc.ContentKindImage, "ze/gpt-image-2.6-sunburst", true, "zeroapi-image"},
+		{aigc.ContentKindImage, "ze/gpt-image-2.6", true, "zeroapi-image"},
+		{aigc.ContentKindImage, "zeroapi/gpt-image-2", true, "zeroapi-image"},
+
 		// 6. OpenAI Compat (Fallback / Explicit)
 		{aigc.ContentKindImage, "openai/dall-e-3", true, "openai-compat"},
 		{aigc.ContentKindImage, "dall-e-2", true, "openai-compat"},
 		{aigc.ContentKindVideo, "sd2.5-antiao", true, "openai-compat"},
-		{aigc.ContentKindImage, "zeroapi/gpt-image-2", true, "openai-compat"},
 		{aigc.ContentKindImage, "siliconflow/flux-1-dev", true, "openai-compat"},
 		{aigc.ContentKindVideo, "openai/sora-1.0", true, "openai-compat"},
 		{aigc.ContentKindVideo, "xai/grok-video-1.0", true, "openai-compat"},
